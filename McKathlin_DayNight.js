@@ -512,7 +512,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 				}
 			}
 		}
-		return new LL.TimeSpan(0, hours, minutes);
+		return new McKathlin.TimeSpan(0, hours, minutes);
 	};
 	
 	McKathlin.DayNight.parseTimeSpan = function(timeSpanString) {
@@ -529,7 +529,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		if (match = timeSpanString.match(/(\d+) ?m/i)) {
 			minutes = Number(match[1]);
 		}
-		return new LL.TimeSpan(days, hours, minutes);
+		return new McKathlin.TimeSpan(days, hours, minutes);
 	};
 
 	//=============================================================================
@@ -743,4 +743,30 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			return McKathlin.DayNight.Param.NightTone;
 		}
 	}
+
+	//=============================================================================
+	// Game Switches protection
+	//=============================================================================
+
+	McKathlin.DayNight.DataManager_setupNewGame = DataManager.setupNewGame;
+	DataManager.setupNewGame = function() {
+		McKathlin.DayNight.DataManager_setupNewGame.call(this);
+		McKathlin.DayNight.reset();
+	};
+
+	McKathlin.DayNight.Game_Switches_setValue = Game_Switches.prototype.setValue;
+	Game_Switches.prototype.setValue = function(switchId, value) {
+		if (switchId > 0 && !McKathlin.DayNight._switching) {
+			if (switchId == McKathlin.Param.DaytimeSwitchID ||
+				switchId == McKathlin.Param.NightSwitchID) {
+				throw new Error("Switch " + switchId +
+					" is reserved for use by McKathlin.DayNight plugin," +
+					" and should not be set outside of it."
+				);
+			}
+		}
+		McKathlin.DayNight.Game_Switches_setValue.call(this, switchId, value);
+	};
+
+
 })();
