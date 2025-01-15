@@ -688,5 +688,59 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			0, 0, McKathlin.DayNight.Param.NewGameStartTimeAsMinutes));
 	};
 
+	//=============================================================================
+	// Lighting application and tone-finding
+	//=============================================================================
+	
+	Game_Map.prototype.applyLightingPreset = function(presetName, duration=0) {
+		this.lightingType = presetName;
+		this.isOutside = (this.lightingType == McKathlin.DayNight.Param.OutdoorLightingKeyword);
+		this.mapTone = McKathlin.DayNightCycle.getToneByKeyword(this.lightingType);
+		$gameScreen.startTint(this.mapTone, duration);
+	};
 
+	McKathlin.DayNightCycle.getToneByKeyword = function(keyword) {
+		var tone = null;
+		if (keyword) {
+			keyword = keyword.toLowerCase();
+			if (keyword == McKathlin.DayNight.Param.OutdoorLightingKeyword) {
+				tone = this.getOutsideTone();
+			} else {
+				let preset = McKathlin.DayNight.Param.SimpleLightingPresets[keyword];
+				tone = preset ? preset.tone : null;
+			}
+		}
+		
+		if (!tone) {
+			tone = McKathlin.DayNight.DEFAULT_TONE;
+		}
+		return tone;
+	};
+
+	McKathlin.DayNightCycle.getOutsideTone = function() {
+		var time = this.getMinutesOfDay();
+		if (time < McKathlin.DayNight.Param.DawnStartTimeAsMinutes) {
+			// night, between midnight and dawn
+			return McKathlin.DayNight.Param.NightTone;
+		}
+		else if (time < McKathlin.DayNight.Param.DawnEndTimeAsMinutes) {
+			// dawn
+			phase = Math.floor((time - McKathlin.DayNight.Param.DawnStartTimeAsMinutes) /
+				McKathlin.DayNight.Param.MinutesPerTonePhase);
+			return McKathlin.DayNight.Param.DawnTonePhases[phase];
+		}
+		else if (time < McKathlin.DayNight.Param.DuskStartTimeAsMinutes) {
+			// daytime light is after dawn and before dusk
+			return McKathlin.DayNight.Param.DaylightTone;
+		}
+		else if (time < McKathlin.DayNight.Param.DuskEndTimeAsMinutes) {
+			phase = Math.floor((time - McKathlin.DayNight.Param.DuskStartTimeAsMinutes) /
+				McKathlin.DayNight.Param.MinutesPerTonePhase);
+			return McKathlin.DayNight.Param.DuskTonePhases[phase];
+		}
+		else {
+			// night, between dusk and midnight
+			return McKathlin.DayNight.Param.NightTone;
+		}
+	}
 })();
