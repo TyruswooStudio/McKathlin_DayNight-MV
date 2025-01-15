@@ -394,5 +394,53 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		return new LL.TimeSpan(days, hours, minutes);
 	};
 
+	//=============================================================================
+	// Day-Night timekeeping
+	//=============================================================================
 
+	McKathlin.DayNightCycle = new McKathlin.TimeSpan();
+	McKathlin.DayNightCycle._switching = false;
+
+	Object.defineProperty(McKathlin.DayNightCycle, 'totalMinutes', {
+		get: function() {
+			return $gameSystem.totalMinutes;
+		},
+		set: function(value) {
+			this.changeTimeTo(value);
+		},
+		configurable: true
+	});
+
+	McKathlin.DayNightCycle.changeTimeTo = function(minutes) {
+		this._switching = true;
+		$gameSystem.totalMinutes = minutes;
+
+		this.updateTime();
+		this._switching = false;
+
+		$gameMap.onTimeChanged();
+	};
+
+	// Update all time-based variables and switches.
+	McKathlin.DayNightCycle.updateTime = function() {
+		var isDay = this.isDaytime();
+		$gameSwitches.setValue(McKathlin.DayNight.Param.DaytimeSwitch, isDay);
+		$gameSwitches.setValue(McKathlin.DayNight.Param.NightSwitch, !isDay);
+
+		$gameVariables.setValue(McKathlin.DayNight.Param.DaysPassedVariable, this.getDays());
+		$gameVariables.setValue(McKathlin.DayNight.Param.CurrentHourVariable, this.getHours());
+		$gameVariables.setValue(McKathlin.DayNight.Param.CurrentMinuteVariable, this.getMinutes());
+	};
+
+	McKathlin.DayNightCycle.now = function() {
+		return this;
+	};
+
+	McKathlin.DayNightCycle.reset = function() {
+		McKathlin.DayNightCycle.setTotalMinutes(0);
+		McKathlin.DayNightCycle.setForwardTo(new McKathlin.TimeSpan(
+			0, 0, McKathlin.DayNight.Param.NewGameStartTimeAsMinutes));
+	};
+
+	
 })();
