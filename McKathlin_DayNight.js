@@ -35,9 +35,9 @@ var McKathlin = McKathlin || {};
 McKathlin.DayNight = McKathlin.DayNight || {};
 
 /*:
- * @plugindesc Configure and track a day-night cycle.
+ * @plugindesc MV v0.1.0 Configure and track a day-night cycle.
  * @author McKathlin
- *
+ * 
  * @param --- Data ---
  * @default
  * 
@@ -57,7 +57,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * @default 0
  *
  * @param Outdoor Lighting Keyword
- * @desc The keyword that calls for outdoor lighting
+ * @desc The keyword for day-night-responsive lighting
  * in notetags or plugin commands.
  * @default Outside
  *
@@ -119,6 +119,11 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *
  * @param --- Simple Lighting Presets ---
  * @default
+ * 
+ * @param Default Lighting Keyword
+ * @desc Use this keyword for the lighting preset
+ * on any map that has no lighting notetag.
+ * @default Outside
  *
  * @param Lighting Preset 1: Keyword
  * @desc The keyword to call for this lighting preset in notetags and plugin commands.
@@ -442,5 +447,5 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			0, 0, McKathlin.DayNight.Param.NewGameStartTimeAsMinutes));
 	};
 
-	
+
 })();
