@@ -350,4 +350,49 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		return new McKathlin.timeSpan(0, 0, minuteDifference);
 	};
 
+
+	//=============================================================================
+	// Time parsing
+	//=============================================================================
+	
+	McKathlin.DayNight.parseTimeOfDay = function(timeString) {
+		var match = timeString.match(/(\d{1,2}):(\d{2}) ?(?:([ap])m?)?/i);
+		if (!match) {
+			throw new Error('Invalid time-of-day string: ' + timeString);
+		}
+		var hours = Number(match[1]);
+		var minutes = Number(match[2]);
+		if (match[3]) { // AM or PM suffix
+			if ('P' == match[3].toUpperCase()) { // PM
+				if (12 != hours) { // 12:XX PM == 12:XX military time.
+					hours += 12; // e.g. 7:15 PM == 19:15 military time.
+				}
+			}
+			else { // AM
+				if (12 == hours) {
+					hours = 0; // 12:XX AM == 00:XX military time.
+				}
+			}
+		}
+		return new LL.TimeSpan(0, hours, minutes);
+	};
+	
+	McKathlin.DayNight.parseTimeSpan = function(timeSpanString) {
+		var days = 0;
+		var hours = 0;
+		var minutes = 0;
+		var match;
+		if (match = timeSpanString.match(/(\d+) ?d/i)) {
+			days = Number(match[1]);
+		}
+		if (match = timeSpanString.match(/(\d+) ?h/i)) {
+			hours = Number(match[1]);
+		}
+		if (match = timeSpanString.match(/(\d+) ?m/i)) {
+			minutes = Number(match[1]);
+		}
+		return new LL.TimeSpan(days, hours, minutes);
+	};
+
+
 })();
