@@ -533,6 +533,114 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 
 	//=============================================================================
+	// Tone parsing
+	//=============================================================================
+
+	McKathlin.DayNight.parseTone = function(toneString) {
+		var matches = toneString.match(/(-?\d+)[, ]+(-?\d+)[, ]+(-?\d+)[, ]+(\d+)/);
+		if (!matches) {
+			throw new Error('Tone parse error: ' + toneString);
+		}
+		r = Number.parseInt(matches[1]) || 0;
+		g = Number.parseInt(matches[2]) || 0;
+		b = Number.parseInt(matches[3]) || 0;
+		gray = Number.parseInt(matches[4]) || 0;
+		
+		return [r, g, b, gray];
+	};
+
+	McKathlin.DayNight.parseToneList = function(toneListString) {
+		var matches = toneListString.match(/[\(\[\{]([\-\d, ]+)[\)\]\}]/g);
+		if (!matches) {
+			return new Array(0); // No matches; no tones in the list.
+		}
+		var tones = new Array(matches.length);
+		var i;
+		for (i = 0; i < matches.length; i++) {
+			tones[i] = McKathlin.DayNight.parseTone(matches[i]);
+		}
+		return tones;
+	};
+
+	//=============================================================================
+	// Parameter init
+	//=============================================================================
+	McKathlin.DayNight.Parameters = PluginManager.Parameters('LL_DayNight');
+	McKathlin.DayNight.Param = McKathlin.DayNight.Param || {};
+
+	// Data
+	McKathlin.DayNight.Param.CurrentTimeVariableID = Number.parseInt(
+		McKathlin.DayNight.Parameters['Current Time Variable']);
+	if (!McKathlin.DayNight.Param.CurrentTimeVariableID) {
+		window.alert("LL_DayNight's Current Time Variable is not set, " +
+			"so the day-night cycle may not function as intended. " +
+			"Please close this game and enter a valid Current Time Variable ID " +
+			"for the LL_DayNight plugin."
+		);
+	}
+	McKathlin.DayNight.Param.DaytimeSwitchID = Number.parseInt(
+		McKathlin.DayNight.Parameters['Daytime Switch']);
+	McKathlin.DayNight.Param.NightSwitchID = Number.parseInt(
+		McKathlin.DayNight.Parameters['Night Switch']);
+	McKathlin.DayNight.Param.OutdoorLightingKeyword = String(
+		McKathlin.DayNight.Parameters['Outdoor Lighting Keyword']).trim().toLowerCase();
+
+	// Element bonuses
+	McKathlin.DayNight.Param.DaytimeElementalEffectsString = String(
+		McKathlin.DayNight.Parameters['Daytime Elemental Effects']);
+	McKathlin.DayNight.Param.NightElementalEffectsString = String(
+		McKathlin.DayNight.Parameters['Night Elemental Effects']);
+
+	// Timing
+	McKathlin.DayNight.Param.NewGameStartTime = McKathlin.DayNight.parseTimeOfDay(
+		McKathlin.DayNight.Parameters['New Game Start Time']);
+	McKathlin.DayNight.Param.DawnStartTime = McKathlin.DayNight.parseTimeOfDay(
+		McKathlin.DayNight.Parameters['Dawn Start Time']);
+	McKathlin.DayNight.Param.DayStartTime = McKathlin.DayNight.parseTimeOfDay(
+		McKathlin.DayNight.Parameters['Day Start Time']);
+	McKathlin.DayNight.Param.DuskStartTime = McKathlin.DayNight.parseTimeOfDay(
+		McKathlin.DayNight.Parameters['Dusk Start Time']);
+	McKathlin.DayNight.Param.NightStartTime = McKathlin.DayNight.parseTimeOfDay(
+		McKathlin.DayNight.Parameters['Night Start Time']);
+	McKathlin.DayNight.Param.MinutesPerStep = Number.parseInt(
+		McKathlin.DayNight.Parameters['Minutes Per Step']);
+	McKathlin.DayNight.Param.MinutesPerTonePhase = Number(
+		McKathlin.DayNight.Parameters['Minutes Per Tone Phase']);
+	McKathlin.DayNight.Param.ToneFadeDuration = Number.parseInt(
+		McKathlin.DayNight.Parameters['Tone Fade Duration']);
+
+	// Tones
+	McKathlin.DayNight.Param.DawnTonePhases = McKathlin.DayNight.parseToneList(
+		McKathlin.DayNight.Parameters['Dawn Tone Phases']);
+	McKathlin.DayNight.Param.DaylightTone = McKathlin.DayNight.parseTone(
+		McKathlin.DayNight.Parameters['Daylight Tone']);
+	McKathlin.DayNight.Param.DuskTonePhases = McKathlin.DayNight.parseToneList(
+		McKathlin.DayNight.Parameters['Dusk Tone Phases']);
+	McKathlin.DayNight.Param.NightTone = McKathlin.DayNight.parseTone(
+		McKathlin.DayNight.Parameters['Night Tone']);
+
+	// Timing (derived)
+	McKathlin.DayNight.Param.DawnEndTime = McKathlin.DayNight.Param.DawnStartTime +
+		(McKathlin.DayNight.Param.MinutesPerTonePhase * McKathlin.DayNight.Param.DawnTonePhases.length);
+	McKathlin.DayNight.Param.DuskEndTime = McKathlin.DayNight.Param.DuskStartTime +
+		(McKathlin.DayNight.Param.MinutesPerTonePhase * McKathlin.DayNight.Param.DuskTonePhases.length);
+
+	// Simple Lighting Presets
+	McKathlin.DayNight.Param.LightingPresets = new Array();
+	McKathlin.DayNight.Param.LIGHTING_COLLECTION_LENGTH = 12;
+	var i;
+	for (i = 1; i <= McKathlin.DayNight.Param.LIGHTING_COLLECTION_LENGTH; i++) {
+		var keyword = String(
+			McKathlin.DayNight.Parameters['Lighting Preset ' + i + ': Keyword']).toLowerCase();
+		if (!keyword) {
+			continue; 
+		}
+		var tone = McKathlin.DayNight.parseTone(
+			McKathlin.DayNight.Parameters['Lighting Preset ' + i + ': Tone']);
+		McKathlin.DayNight.Param.LightingPresets[keyword] = tone;
+	}
+
+	//=============================================================================
 	// Day-Night timekeeping
 	//=============================================================================
 
