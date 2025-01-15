@@ -217,5 +217,137 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * @default (0, 0, 0, 0)
  */
 
+(() => {
 
+	//=============================================================================
+	// Constants
+	//=============================================================================
+	McKathlin.DayNight = McKathlin.DayNight || {};
+	McKathlin.DayNight.MINUTES_PER_HOUR = 60;
+	McKathlin.DayNight.HOURS_PER_DAY = 24;
+	McKathlin.DayNight.MINUTES_PER_DAY =
+		McKathlin.DayNight.MINUTES_PER_HOUR *
+		McKathlin.DayNight.HOURS_PER_DAY;
 
+	//=============================================================================
+	// TimeSpan class
+	//=============================================================================
+	
+	/** The TimeSpan class.
+	 *  Keeps track of a timespan in terms of days, hours, and minutes.
+	 *
+	 * @class McKathlin.TimeSpan
+	 * @constructor
+	 * @param {Number} days The number of days
+	 * @param {Number} hours The number of hours
+	 * @param {Number} minutes The number of minutes
+	 */
+	McKathlin.TimeSpan = function() {
+		this.initialize.apply(this, arguments);
+	};
+
+	Object.defineProperty(McKathlin.TimeSpan.prototype, 'totalMinutes', {
+		get: function() { return this._totalMinutes; },
+		set: function(value) { this._totalMinutes = value; },
+		configurable: true
+	});
+
+	McKathlin.TimeSpan.prototype.initialize = function(days, hours, minutes) {
+		days = days || 0;
+		hours = hours || 0;
+		minutes = minutes || 0;
+		
+		var totalMins = days * McKathlin.DayNight.MINUTES_PER_DAY;
+		totalMins += hours * McKathlin.DayNight.MINUTES_PER_HOUR;
+		totalMins += minutes;
+		this.totalMinutes = totalMins;
+	};
+
+	McKathlin.TimeSpan.prototype.getMinutes = function() {
+		return this.totalMinutes % McKathlin.DayNight.MINUTES_PER_HOUR;
+	};
+
+	McKathlin.TimeSpan.prototype.getHours = function() {
+		return Math.floor(this.totalMinutes / McKathlin.DayNight.MINUTES_PER_HOUR) %
+			McKathlin.DayNight.HOURS_PER_DAY;
+	};
+
+	McKathlin.TimeSpan.prototype.getDays = function() {
+		return Math.floor(this.totalMinutes / McKathlin.DayNight.MINUTES_PER_DAY);
+	};
+
+	McKathlin.TimeSpan.prototype.getTotalHours = function() {
+		return Math.floor(this.totalMinutes / McKathlin.DayNight.MINUTES_PER_HOUR);
+	};
+
+	McKathlin.TimeSpan.prototype.getTotalMinutes = function() {
+		return this.totalMinutes;
+	};
+
+	McKathlin.TimeSpan.prototype.getMinutesOfDay = function() {
+		return this.totalMinutes % McKathlin.DayNight.MINUTES_PER_DAY;
+	};
+
+	McKathlin.TimeSpan.prototype.isDaytime = function() {
+		var timeOfDay = this.getMinutesOfDay();
+		return timeOfDay >= McKathlin.DayNight.Param.DayStartTimeAsMinutes &&
+				timeOfDay < McKathlin.DayNight.Param.NightStartTimeAsMinutes;
+	};
+
+	McKathlin.TimeSpan.prototype.isNight = function() {
+		return !this.isDaytime();
+	};
+
+	McKathlin.TimeSpan.prototype.valueOf = function() {
+		return this.totalMinutes;
+	};
+
+	McKathlin.TimeSpan.prototype.toString = function() {
+		var hh = this.getHours().toString().padStart(2, '0');
+		var mm = this.getMinutes().toString().padStart(2, '0');
+		return "" + hh + ":" + mm;
+	};
+
+	// Either a TimeSpan or a number of minutes can be added; they are equivalent.
+	McKathlin.TimeSpan.prototype.add = function(timeSpan) {
+		this.totalMinutes += timeSpan.totalMinutes;
+		return this.totalMinutes;
+	};
+	
+	McKathlin.TimeSpan.prototype.addMinutes = function(minutes) {
+		this.totalMinutes += minutes;
+		return this.totalMinutes;
+	};
+
+	McKathlin.TimeSpan.prototype.setForwardTo = function(timeOfDay) {
+		var theirMinutesToday = timeOfDay.getMinutesOfDay();
+		var myMinutesToday = this.getMinutesOfDay();
+		var difference = theirMinutesToday - myMinutesToday;
+		if (difference < 0) { // Target time is earlier in day than current time
+			// Add a day to get the target time of day tomorrow.
+			difference += McKathlin.DayNight.MINUTES_PER_DAY;
+		}
+		this.totalMinutes += difference;
+		return this.totalMinutes;
+	};
+
+	McKathlin.TimeSpan.prototype.setTotalMinutes = function(minutes) {
+		this.totalMinutes = Number(minutes);
+		return this.totalMinutes;
+	};
+
+	// Returns a new TimeSpan that equals this TimeSpan
+	// with the stated TimeSpan or number of minutes added.
+	McKathlin.TimeSpan.prototype.plus = function(timeSpan) {
+		var minuteSum = this.totalMinutes + timeSpan.totalMinutes;
+		return new McKathlin.TimeSpan(0, 0, minuteSum);
+	};
+
+	// Returns a new TimeSpan that equals this TimeSpan
+	// with the stated TimeSpan or number of minutes subtracted.
+	McKathlin.TimeSpan.prototype.minus = function(timeSpan) {
+		var minuteDifference = this.totalMinutes - timeSpan.totalMinutes;
+		return new McKathlin.timeSpan(0, 0, minuteDifference);
+	};
+
+})();
