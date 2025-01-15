@@ -768,5 +768,28 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNight.Game_Switches_setValue.call(this, switchId, value);
 	};
 
+	//=============================================================================
+	// Map Notetags
+	//=============================================================================
+
+	// TODO: Implement notetags without requiring dependencies
+
+	//=============================================================================
+	// Party Step
+	//=============================================================================
+
+	McKathlin.DayNight.Game_Party_increaseSteps = Game_Party.prototype.increaseSteps;
+	Game_Party.prototype.increaseSteps = function() {
+		McKathlin.DayNight.Game_Party_increaseSteps.call(this);
+		if ($gameMap && $gameMap.minutesPerStep > 0) {
+			McKathlin.DayNightCycle.addMinutes($gameMap.minutesPerStep);
+		}
+	};
+
+	//=============================================================================
+	// Plugin Commands
+	//=============================================================================
+
+	// TODO: Implement plugin commands without dependencies
 
 })();
