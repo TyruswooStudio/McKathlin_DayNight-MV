@@ -175,16 +175,19 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * @default
  * 
  * @param Current Time Variable
- * @desc The ID of the variable to track the number of in-universe minutes
+ * @type variable
+ * @desc This variable tracks the number of in-universe minutes
  * since midnight of game start day. Required.
- * @default 
+ * @default 0
  *
  * @param Daytime Switch
- * @desc The ID of the switch that signals when it is daytime.
+ * @type switch
+ * @desc This switch signals when it is daytime.
  * If 0, no daytime signal switch will be maintained.
  * @default 0
  *
  * @param Night Switch
+ * @type switch
  * @desc The ID of the switch that signals when it is night time.
  * If 0, no night time signal switch will be maintained.
  * @default 0
@@ -565,17 +568,17 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	//=============================================================================
 	// Parameter init
 	//=============================================================================
-	McKathlin.DayNight.Parameters = PluginManager.Parameters('LL_DayNight');
+	McKathlin.DayNight.Parameters = PluginManager.parameters('McKathlin_DayNight');
 	McKathlin.DayNight.Param = McKathlin.DayNight.Param || {};
 
 	// Data
 	McKathlin.DayNight.Param.CurrentTimeVariableID = Number.parseInt(
 		McKathlin.DayNight.Parameters['Current Time Variable']);
 	if (!McKathlin.DayNight.Param.CurrentTimeVariableID) {
-		window.alert("LL_DayNight's Current Time Variable is not set, " +
+		window.alert("McKathlin_DayNight's Current Time Variable is not set, " +
 			"so the day-night cycle may not function as intended. " +
 			"Please close this game and enter a valid Current Time Variable ID " +
-			"for the LL_DayNight plugin."
+			"for the McKathlin_DayNight plugin."
 		);
 	}
 	McKathlin.DayNight.Param.DaytimeSwitchID = Number.parseInt(
@@ -751,7 +754,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	McKathlin.DayNight.DataManager_setupNewGame = DataManager.setupNewGame;
 	DataManager.setupNewGame = function() {
 		McKathlin.DayNight.DataManager_setupNewGame.call(this);
-		McKathlin.DayNight.reset();
+		McKathlin.DayNightCycle.reset();
 	};
 
 	McKathlin.DayNight.Game_Switches_setValue = Game_Switches.prototype.setValue;
@@ -771,8 +774,76 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	//=============================================================================
 	// Map Notetags
 	//=============================================================================
+	McKathlin.Core = McKathlin.Core || {};
+	
+	McKathlin.Core.includesSimpleNotetag = function(note, notetagName) {
+		simpleRegex = new RegExp('<' + notetagName + '>', 'i');
+		return simpleRegex.test(note);
+	};
+	
+	McKathlin.Core.getNotetagValueIn = function(note, notetagName) {
+		if (McKathlin.Core.includesSimpleNotetag(note, notetagName)) {
+			return true;
+		} else {
+			var regex = new RegExp('<' + notetagName + '(?: |: |:)([^>]+)>', 'i');
+			var captures = note.match(regex);
+			if (captures) {
+				return captures[1];
+			} else {
+				return null;
+			}
+		}
+	};
 
-	// TODO: Implement notetags without requiring dependencies
+	McKathlin.DayNight.getStepNotetag = function(note) {
+		var stepString = McKathlin.Core.getNotetagValueIn(note, 'day-?night');
+		if (!stepString) {
+			// No DayNight notetag found. No minutes per step.
+			return 0;
+		}
+		
+		var captures = stepString.match(/step(?: ?[=: ] ?(\d+))?/i);
+		if (captures) {
+			// It's a step notetag.
+			if (captures[1]) {
+				// Minutes per step specified.
+				return Number(captures[1]);
+			} else {
+				// No amount given. Use the default.
+				return McKathlin.DayNight.Param.MinutesPerStep;
+			}
+		} else {
+			// It's not a step notetag. No minutes per step.
+			return 0;
+		}
+	};
+	
+	McKathlin.DayNight.getLightingNotetag = function(note) {
+		var lightingWord = McKathlin.Core.getNotetagValueIn(note, 'lighting');
+		return lightingWord ? lightingWord.toLowerCase() :
+			McKathlin.DayNight.Param.DefaultLightingKeyword;
+	};
+
+	//-----------------------------
+	// new map variables in action
+
+	Game_Map.prototype.onTimeChanged = function() {
+		if (!this.isOutside) return;
+		
+		var newTone = LL.DayNight.getOutsideTone();
+		if (newTone == this.mapTone) return;
+		
+		this.mapTone = newTone;
+		$gameScreen.startTint(this.mapTone, LL.Param.ToneFadeDuration);
+	};
+
+	McKathlin.DayNight.Game_Map_setup = Game_Map.prototype.setup;
+	Game_Map.prototype.setup = function(mapId) {
+		McKathlin.DayNight.Game_Map_setup.call(this, mapId);
+		if (this.mapTone) {
+			$gameScreen.startTint(this.mapTone, 0);
+		}
+	};
 
 	//=============================================================================
 	// Party Step
@@ -790,6 +861,15 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Plugin Commands
 	//=============================================================================
 
-	// TODO: Implement plugin commands without dependencies
+	McKathlin.DayNight.Game_Interpreter_pluginCommand =
+		Game_Interpreter.prototype.pluginCommand;
+	Game_Interpreter.prototype.pluginCommand = function(command, args) {
+		McKathlin.DayNight.Game_Interpreter_pluginCommand.call(this, command, args);
+		if (false == /^day-?night$/i.test(command)) {
+			return;
+		}
+		// If we're here, it's a DayNight command.
+		// TODO: finish writing this
+	}
 
 })();
