@@ -629,6 +629,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		(McKathlin.DayNight.Param.MinutesPerTonePhase * McKathlin.DayNight.Param.DuskTonePhases.length);
 
 	// Simple Lighting Presets
+	McKathlin.DayNight.Param.DefaultLightingKeyword =
+		McKathlin.DayNight.Parameters['Default Lighting Keyword'];
 	McKathlin.DayNight.Param.LightingPresets = new Array();
 	McKathlin.DayNight.Param.LIGHTING_COLLECTION_LENGTH = 12;
 	var i;
@@ -699,7 +701,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		this.lightingType = presetName;
 		this.isOutside = (this.lightingType == McKathlin.DayNight.Param.OutdoorLightingKeyword);
 		this.mapTone = McKathlin.DayNightCycle.getToneByKeyword(this.lightingType);
-		$gameScreen.startTint(this.mapTone, duration);
+		if (this.mapTone) {
+			$gameScreen.startTint(this.mapTone, duration);
+		}
 	};
 
 	McKathlin.DayNightCycle.getToneByKeyword = function(keyword) {
@@ -840,9 +844,12 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	McKathlin.DayNight.Game_Map_setup = Game_Map.prototype.setup;
 	Game_Map.prototype.setup = function(mapId) {
 		McKathlin.DayNight.Game_Map_setup.call(this, mapId);
-		if (this.mapTone) {
-			$gameScreen.startTint(this.mapTone, 0);
-		}
+		const note = $dataMap.note || "";
+		this.minutesPerStep = McKathlin.DayNight.getStepNotetag(note);
+
+		const lightingType = McKathlin.DayNight.getLightingNotetag(note);
+		const INSTANT_DURATION = 0;
+		this.applyLightingPreset(lightingType, INSTANT_DURATION);
 	};
 
 	//=============================================================================
