@@ -35,14 +35,14 @@ var McKathlin = McKathlin || {};
 McKathlin.DayNight = McKathlin.DayNight || {};
 
 /*:
- * @plugindesc MV v0.1.0 Configure and track a day-night cycle.
+ * @plugindesc MV 2.1.0 Configure and track a day-night cycle.
  * @author McKathlin
- * @help Day-Night Cycle for RPG Maker MV
- * ============================================================================
- * This plugin tracks a day-night cycle:
+ * 
+ * @help This plugin tracks a day-night cycle:
  * it keeps track of time of day as the cycle advances,
  * auto-updates variables and switches based on time of day,
  * and applies screen tones to areas marked as outdoors.
+ * 
  * ===========================================================================
  * How to Start Using This Plugin                                               
  * ===========================================================================
@@ -88,6 +88,20 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *    pass the night and make it morning. See the Plugin Command Examples
  *    section for more info.
  * 
+ * Optionally, you can set up a cycle where some nights have different
+ * lighting and a different switch active from most nights. We call this
+ * Bloodmoon, but in your game you can tie any meaning to it you want:
+ * New Moon, Full Moon, Blue Moon, Eclipse, whatever you have in mind.
+ * Here's how to set it up:
+ * 11. Set the plugin parameter Enable Bloodmoon to ON.
+ * 12. Use the plugin parameters to assign any Bloodmoon switches and variable
+ *     you plan to have your game's events use.
+ * 13. Set the plugin parameters Days in Moon Cycle and Nights Before First
+ *     Bloodmoon to set how often unusual nights happen and when they start.
+ * 14. Adjust the Bloodmoon dusk, night, and dawn tone phases to your liking.
+ *     The default settings give these nights a dark red cast, but you can
+ *     change this to whatever you like.
+ * 
  * ===========================================================================
  * Map Notetag Examples                                                   
  * ===========================================================================
@@ -110,16 +124,23 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * ===========================================================================
  * Plugin Command Examples                                               
  * ===========================================================================
- * DayNight set 7:05 AM
+ * Set Time 7:05 AM
  *   Sets the the time of day to the specified time.
  *   In-universe time passed only moves forward, so setting the time earlier
  *   than the present time will advance in-universe time to the next day.
  *
- * DayNight add 2hs 30m
+ * Add Time 2 hours 30 minutes
  *   Moves the time of day forward the specified amount.
  *
- * DayNight reset
+ * Reset Time
  *   Changes the time back to game start time on day 0.
+ * 
+ * Set Lighting Dark
+ *   Applies the lighting preset named Dark.
+ * 
+ * Reset Lighting
+ *   Resets the lighting conditions to the preset specified in the current
+ *   map's notetag.
  *
  * ===========================================================================
  * Script Call Getter Methods                                             
@@ -142,8 +163,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * ============================================================================
  * Version History:
  *
- * v0.1.0  Pending
- *     - Day-Night Cycle plugin released for RPG Maker MV
+ * v2.1.0  Pending
+ *        - Day-Night Cycle plugin released for RPG Maker MV
+ *        - Includes Bloodmoon, picture overlay, and all other features
+ *          from MZ Day-Night Cycle v2.1.0
  * 
  * ============================================================================
  * MIT License
@@ -170,205 +193,617 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * ============================================================================
  * Happy storytelling!
  * -McKathlin
- * 
- * @param --- Data ---
- * @default
- * 
- * @param Current Time Variable
- * @type variable
- * @desc This variable tracks the number of in-universe minutes
- * since midnight of game start day. Required.
- * @default 0
  *
+ * 
+ * @command setTime
+ * @text Set Time
+ * @desc Set the time forward to a specific time of day.
+ * 
+ * @arg time_of_day
+ * @text Time of Day
+ * @type struct<time>
+ * 
+ * @command addTime
+ * @text Add Time
+ * @desc Move the time forward some number of hours and minutes.
+ * 
+ * @arg time_span
+ * @text Time Span
+ * @type struct<timespan>
+ * 
+ * @command resetTime
+ * @text Reset Time
+ * @desc Reset time to the game's designated starting time.
+ *
+ * @command resetLighting
+ * @text Reset Lighting
+ * @desc Reset lighting to the lighting notetag in the map's note.
+ *
+ * @arg duration
+ * @text Duration
+ * @default 60
+ * @desc Frames (1/60 sec) over which to tint screen to lighting.
+ *
+ * @command useLightingPreset
+ * @text Use Lighting Preset
+ * @desc Tint screen to a lighting preset defined in the plugin parameters.
+ *
+ * @arg lightingKeyword
+ * @text Lighting Keyword
+ * @desc The keyword of the lighting preset, as defined in the plugin parameters.
+ *
+ * @arg duration
+ * @text Duration
+ * @default 60
+ * @desc Frames (1/60 sec) over which to tint screen to lighting.
+ * 
  * @param Daytime Switch
  * @type switch
- * @desc This switch signals when it is daytime.
- * If 0, no daytime signal switch will be maintained.
- * @default 0
+ * @desc The switch that signals when it is daytime.
  *
  * @param Night Switch
  * @type switch
- * @desc The ID of the switch that signals when it is night time.
- * If 0, no night time signal switch will be maintained.
- * @default 0
- *
- * @param Outdoor Lighting Keyword
- * @desc The keyword for day-night-responsive lighting
- * in notetags or plugin commands.
- * @default Outside
- *
- * @param --- Timing ---
- * @default
- *
+ * @desc The switch that signals when it is night time.
+ * 
+ * @param Days Passed Variable
+ * @type variable
+ * @desc The variable stating how many in-game days since day start.
+ * 
+ * @param Current Hour Variable
+ * @type variable
+ * @desc The variable stating the hour of the day, 0 (midnight) to 23 (11PM).
+ * @parent Days Passed Variable
+ * 
+ * @param Current Minute Variable
+ * @type variable
+ * @desc The variable stating the minute of the current hour, 0 to 59.
+ * @parent Days Passed Variable
+ * 
  * @param New Game Start Time
+ * @type struct<time>
+ * @default {"hour":"8","minutes":"0","ampm":"AM"}
  * @desc A new game will start at this time of day.
- * @default 8:00 AM
  *
  * @param Dawn Start Time
+ * @type struct<time>
+ * @default {"hour":"6","minutes":"0","ampm":"AM"}
  * @desc When to start dawn (sunrise) tone phases.
- * @default 6:00 AM
+ * @parent New Game Start Time
  *
  * @param Day Start Time
+ * @type struct<time>
+ * @default {"hour":"6","minutes":"0","ampm":"AM"}
  * @desc When to set Daytime Switch to ON and Night Switch to OFF.
- * @default 6:00 AM
+ * @parent New Game Start Time
  *
  * @param Dusk Start Time
+ * @type struct<time>
+ * @default {"hour":"6","minutes":"0","ampm":"PM"}
  * @desc When to start dusk (sunset) tone phases.
- * @default 6:00 PM
+ * @parent New Game Start Time
  *
  * @param Night Start Time
+ * @type struct<time>
+ * @default {"hour":"8","minutes":"0","ampm":"PM"}
  * @desc When to set Night Switch to ON and Daytime Switch to OFF.
- * @default 8:00 PM
+ * @parent New Game Start Time
  *
  * @param Minutes Per Step
+ * @type number
+ * @default 5
+ * @min 0
  * @desc How many minutes pass per player step, in maps where
  * <DayNight step> is enabled.
- * @default 5
  *
  * @param Minutes Per Tone Phase
  * @desc How many minutes pass from one dawn or dusk phase to the next.
+ * @type number
  * @default 30
+ * @parent Minutes Per Step
  *
  * @param Tone Fade Duration
  * @desc Number of frames to spend fading from one day-night screen tone
  * to the next.
+ * @type number
  * @default 60
+ * @parent Minutes Per Step
  * 
- * @param --- Day-Night Tones ---
- * @default
- *
  * @param Dawn Tone Phases
+ * @type struct<tone>[]
+ * @default ["{\"red\":\"-68\",\"green\":\"-68\",\"blue\":\"-14\",\"gray\":\"41\"}","{\"red\":\"-68\",\"green\":\"-68\",\"blue\":\"-27\",\"gray\":\"14\"}","{\"red\":\"-54\",\"green\":\"-54\",\"blue\":\"-27\",\"gray\":\"0\"}","{\"red\":\"-27\",\"green\":\"-27\",\"blue\":\"-14\",\"gray\":\"0\"}"]
  * @desc The tone(s) to step through during transition from night to day.
- * @default (-68, -68, -14, 41); (-68, -68, -27, 14); (-54, -54, -27, 0); (-27, -27, -14, 0)
  * 
  * @param Daylight Tone
- * @desc The screen tone (r, g, b, gray) to apply during day time.
- * @default (0, 0, 0, 0)
- *
+ * @type struct<tone>
+ * @default {"red":"0","green":"0","blue":"0","gray":"0"}
+ * @desc The screen tone to apply during day time.
+ * @parent Dawn Tone Phases
+ * 
  * @param Dusk Tone Phases
+ * @type struct<tone>[]
+ * @default ["{\"red\":\"27\",\"green\":\"-14\",\"blue\":\"-14\",\"gray\":\"0\"}","{\"red\":\"54\",\"green\":\"-27\",\"blue\":\"-27\",\"gray\":\"0\"}","{\"red\":\"41\",\"green\":\"-41\",\"blue\":\"-27\",\"gray\":\"14\"}","{\"red\":\"-14\",\"green\":\"-54\",\"blue\":\"-14\",\"gray\":\"41\"}"]
  * @desc The tone(s) to step through during transition from day to night.
- * @default (27, -14, -14, 0); (54, -27, -27, 0); (41, -41, -27, 14); (-14, -54, -14, 41)
- *
+ * @parent Dawn Tone Phases
+ * 
  * @param Night Tone
- * @desc The screen tone (r, g, b, gray) to apply during night time.
- * @default (-68, -68, 0, 68)
- *
- * @param --- Simple Lighting Presets ---
- * @default
+ * @type struct<tone>
+ * @default {"red":"-68","green":"-68","blue":"0","gray":"68"}
+ * @desc The screen tone to apply during night time.
+ * @parent Dawn Tone Phases
+ * 
+ * @param Outdoor Lighting Keyword
+ * @type text
+ * @default Outside
+ * @desc The keyword that calls for outdoor lighting
+ * in notetags or plugin commands.
+ * 
+ * @param Simple Lighting Presets
+ * @type struct<lightingPreset>[]
+ * @default ["{\"keyword\":\"Bright\",\"tone\":\"{\\\"red\\\":\\\"0\\\",\\\"green\\\":\\\"0\\\",\\\"blue\\\":\\\"0\\\",\\\"gray\\\":\\\"0\\\"}\"}","{\"keyword\":\"Fire\",\"tone\":\"{\\\"red\\\":\\\"0\\\",\\\"green\\\":\\\"-48\\\",\\\"blue\\\":\\\"-68\\\",\\\"gray\\\":\\\"68\\\"}\"}","{\"keyword\":\"Blue\",\"tone\":\"{\\\"red\\\":\\\"-68\\\",\\\"green\\\":\\\"-68\\\",\\\"blue\\\":\\\"0\\\",\\\"gray\\\":\\\"68\\\"}\"}","{\"keyword\":\"Dark\",\"tone\":\"{\\\"red\\\":\\\"-68\\\",\\\"green\\\":\\\"-68\\\",\\\"blue\\\":\\\"-68\\\",\\\"gray\\\":\\\"0\\\"}\"}","{\"keyword\":\"Sunset\",\"tone\":\"{\\\"red\\\":\\\"68\\\",\\\"green\\\":\\\"-34\\\",\\\"blue\\\":\\\"-34\\\",\\\"gray\\\":\\\"0\\\"}\"}","{\"keyword\":\"Sepia\",\"tone\":\"{\\\"red\\\":\\\"34\\\",\\\"green\\\":\\\"-34\\\",\\\"blue\\\":\\\"-68\\\",\\\"gray\\\":\\\"170\\\"}\"}","{\"keyword\":\"Gold\",\"tone\":\"{\\\"red\\\":\\\"34\\\",\\\"green\\\":\\\"0\\\",\\\"blue\\\":\\\"-90\\\",\\\"gray\\\":\\\"100\\\"}\"}","{\"keyword\":\"Green\",\"tone\":\"{\\\"red\\\":\\\"-34\\\",\\\"green\\\":\\\"0\\\",\\\"blue\\\":\\\"-68\\\",\\\"gray\\\":\\\"100\\\"}\"}","{\"keyword\":\"Gray\",\"tone\":\"{\\\"red\\\":\\\"0\\\",\\\"green\\\":\\\"0\\\",\\\"blue\\\":\\\"0\\\",\\\"gray\\\":\\\"255\\\"}\"}"]
+ * @desc These single-tone lighting presets can be invoked by keyword
+ * in notetags and plugin commands.
+ * 
+ * @param Overlay Starting Picture Number
+ * @type number
+ * @min 1
+ * @max 99
+ * @default 10
+ * @desc If an overlay's picture number is left blank, this number,
+ * or the next unused number larger than it, will be used.
+ * @parent Simple Lighting Presets
  * 
  * @param Default Lighting Keyword
- * @desc Use this keyword for the lighting preset
- * on any map that has no lighting notetag.
+ * @type text
  * @default Outside
+ * @desc The name of the type of lighting to apply on maps that don't
+ * have a lighting notetag.
  *
- * @param Lighting Preset 1: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Bright
- *
- * @param Lighting Preset 1: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 1 is called
- * @default (0, 0, 0, 0)
- *
- * @param Lighting Preset 2: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Fire
- *
- * @param Lighting Preset 2: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 2 is called
- * @default (-16, -70, -100, 100)
- *
- * @param Lighting Preset 3: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Blue
- *
- * @param Lighting Preset 3: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 3 is called
- * @default (-68, -68, 0, 68)
- *
- * @param Lighting Preset 4: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Dark
- *
- * @param Lighting Preset 4: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 4 is called
- * @default (-68, -68, -68, 0)
- *
- * @param Lighting Preset 5: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default VeryDark
- *
- * @param Lighting Preset 5: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 5 is called
- * @default (-100, -100, -100, 100)
- *
- * @param Lighting Preset 6: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Black
- *
- * @param Lighting Preset 6: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 6 is called
- * @default (-100, -100, -100, 100)
- *
- * @param Lighting Preset 7: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Gold
- *
- * @param Lighting Preset 7: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 7 is called
- * @default (34, 0, -90, 100)
- *
- * @param Lighting Preset 8: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default Swamp
- *
- * @param Lighting Preset 8: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 8 is called
- * @default (-34, 0, -68, 100)
- *
- * @param Lighting Preset 9: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
+ * @param Enable Bloodmoon
+ * @type boolean
+ * @default false
+ * @desc Turn this parameter ON, and once every several nights
+ * will be unusual, with distinct lighting and switch.
+ * 
+ * @param Bloodmoon Night Switch
+ * @type switch
  * @default 
- *
- * @param Lighting Preset 9: Tone
- * @desc The screen tone (r, g, b, gray) to apply when Lighting Preset 9 is called
- * @default (0, 0, 0, 0)
- *
- * @param Lighting Preset 10: Keyword
+ * @desc This switch is ON during a Bloodmoon night,
+ * and OFF otherwise. If blank, no switch is kept.
+ * @parent Enable Bloodmoon
+ * 
+ * @param Bloodmoon Phase Switch
+ * @type switch
+ * @default
+ * @desc This switch is ON during the day preceding a Bloodmoon
+ * night, as well as the Bloodmoon night itself.
+ * @parent Enable Bloodmoon
+ * 
+ * @param Moon Phase Variable
+ * @type variable
+ * @default
+ * @desc Where to store how many days since last Bloodmoon.
+ * Variable is 0 on Bloodmoon night and its preceding day.
+ * @parent Enable Bloodmoon
+ * 
+ * @param Days in Moon Cycle
+ * @type number
+ * @min 1
+ * @default 6
+ * @desc Number of days from one Bloodmoon to the next.
+ * 2 = every other night, 3 = every 3rd night, etc.
+ * @parent Enable Bloodmoon
+ * 
+ * @param Nights Before First Bloodmoon
+ * @type number
+ * @default 5
+ * @desc Number of normal nights before first-ever Bloodmoon night
+ * @parent Enable Bloodmoon
+ * 
+ * @param Bloodmoon Dusk Tone Phases
+ * @type struct<tone>[]
+ * @default ["{\"red\":\"30\",\"green\":\"-20\",\"blue\":\"-20\",\"gray\":\"0\"}","{\"red\":\"60\",\"green\":\"-40\",\"blue\":\"-30\",\"gray\":\"10\"}","{\"red\":\"40\",\"green\":\"-80\",\"blue\":\"-70\",\"gray\":\"30\"}","{\"red\":\"10\",\"green\":\"-100\",\"blue\":\"-70\",\"gray\":\"60\"}"]
+ * @desc Screen tones leading from day into Bloodmoon night
+ * @parent Enable Bloodmoon
+ * 
+ * @param Bloodmoon Night Tone
+ * @type struct<tone>
+ * @default {"red":"-10","green":"-110","blue":"-80","gray":"120"}
+ * @desc Screen tone applied during Bloodmoon night
+ * @parent Enable Bloodmoon
+ * 
+ * @param Bloodmoon Dawn Tone Phases
+ * @type struct<tone>[]
+ * @default ["{\"red\":\"-15\",\"green\":\"-90\",\"blue\":\"-60\",\"gray\":\"60\"}","{\"red\":\"-15\",\"green\":\"-70\",\"blue\":\"-50\",\"gray\":\"30\"}","{\"red\":\"-15\",\"green\":\"-40\",\"blue\":\"-40\",\"gray\":\"10\"}","{\"red\":\"-15\",\"green\":\"-30\",\"blue\":\"-30\",\"gray\":\"0\"}"]
+ * @desc Screen tones leading from Bloodmoon night into the next day
+ * @parent Enable Bloodmoon
+ */
+
+/*~struct~time:
+ * @param hour
+ * @text Hour
+ * @type number
+ * @min 1
+ * @max 12
+ * @default 6
+ * 
+ * @param minutes
+ * @text Minutes
+ * @type number
+ * @min 0
+ * @max 59
+ * @default 0
+ * 
+ * @param ampm
+ * @text AM/PM
+ * @type select
+ * @option AM
+ * @option PM
+ * @default AM
+ */
+ 
+/*~struct~timespan:
+ * @param hours
+ * @text Hours
+ * @type number
+ * @min 0
+ * @default 0
+ * 
+ * @param minutes
+ * @text Minutes
+ * @type number
+ * @min 0
+ * @max 59
+ * @default 0
+ */
+ 
+/*~struct~tone:
+ * @param red
+ * @text Red
+ * @type number
+ * @min -255
+ * @max 255
+ * @default 0
+ * 
+ * @param green
+ * @text Green
+ * @type number
+ * @min -255
+ * @max 255
+ * @default 0
+ * 
+ * @param blue
+ * @text Blue
+ * @type number
+ * @min -255
+ * @max 255
+ * @default 0
+ * 
+ * @param gray
+ * @text Gray
+ * @type number
+ * @min 0
+ * @max 255
+ * @default 0
+ */
+
+/*~struct~lightingPreset:
+ * @param keyword
+ * @text Keyword
+ * @type text
  * @desc The keyword to call for this lighting preset in notetags and plugin commands.
+ * 
+ * @param tone
+ * @text Tone
+ * @type struct<tone>
+ * @desc The screen tone to apply when a notetag or plugin command calls for this preset.
+ * 
+ * @param picture_overlay
+ * @text Picture Overlay
+ * @type struct<picture>
+ * @desc Show this picture (if any) on the screen
+ * whenever this lighting preset is active.
+ */
+
+/*~struct~picture:
+ * @param picture_number
+ * @text Picture Number
+ * @type number
+ * @min 0
+ * @max 100
  * @default 
- *
- * @param Lighting Preset 10: Tone
- * @desc The screen tone to apply when Lighting Preset 10 is called
- * @default (0, 0, 0, 0)
- *
- * @param Lighting Preset 11: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default 
- *
- * @param Lighting Preset 11: Tone
- * @desc The screen tone to apply when Lighting Preset 11 is called
- * @default (0, 0, 0, 0)
- *
- * @param Lighting Preset 12: Keyword
- * @desc The keyword to call for this lighting preset in notetags and plugin commands.
- * @default 
- *
- * @param Lighting Preset 12: Tone
- * @desc The screen tone to apply when Lighting Preset 12 is called
- * @default (0, 0, 0, 0)
+ * @desc The layer number for this picture. Larger numbers
+ * have higher priority. Leave blank or zero to auto-assign.
+ * 
+ * @param filename
+ * @text File Name
+ * @type file
+ * @dir img/pictures/
+ * @desc The file containing the picture to show.
+ * 
+ * @param origin
+ * @text Origin
+ * @type select
+ * @option Upper Left
+ * @value 0
+ * @option Center
+ * @value 1
+ * @default 0
+ * @desc Treat this point on the picture as its origin.
+ * 
+ * @param x
+ * @text Position X
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc Place the picture's origin this many pixels to the right
+ * of the left edge of the screen.
+ * 
+ * @param y
+ * @text Position Y
+ * @type number
+ * @min -9999
+ * @max 9999
+ * @default 0
+ * @desc Place the picture's origin this many pixels below
+ * the top edge of the screen.
+ * 
+ * @param width_percent
+ * @text Width Percent
+ * @type number
+ * @min -2000
+ * @max 2000
+ * @default 100
+ * @desc Scale the picture's width to this percent of the original file's width.
+ * 
+ * @param height_percent
+ * @text Height Percent
+ * @type number
+ * @min -2000
+ * @max 2000
+ * @default 100
+ * @desc Scale the picture's height to this percent of the original file's height.
+ * 
+ * @param opacity
+ * @text Opacity
+ * @type number
+ * @min 0
+ * @max 255
+ * @default 255
+ * @desc The picture's opacity. 0 is invisible; 255 is fully opaque.
+ * The smaller the opacity number, the more see-through.
+ * 
+ * @param blend_mode
+ * @text Blend Mode
+ * @type select
+ * @option Normal
+ * @value 0
+ * @option Additive
+ * @value 1
+ * @option Multiply
+ * @value 2
+ * @option Screen
+ * @value 3
+ * @default 0
+ * @desc This picture's way of layering. Normal = simple overlap.
+ * Additive = lighten. Multiply = darken. Screen = brighten.
  */
 
 (() => {
-
 	//=============================================================================
 	// Constants
 	//=============================================================================
+	
+	const pluginName = 'McKathlin_DayNight';
+	
+	McKathlin = McKathlin || {};
 	McKathlin.DayNight = McKathlin.DayNight || {};
+	
 	McKathlin.DayNight.MINUTES_PER_HOUR = 60;
 	McKathlin.DayNight.HOURS_PER_DAY = 24;
-	McKathlin.DayNight.MINUTES_PER_DAY =
-		McKathlin.DayNight.MINUTES_PER_HOUR *
-		McKathlin.DayNight.HOURS_PER_DAY;
+	McKathlin.DayNight.MINUTES_PER_DAY = McKathlin.DayNight.HOURS_PER_DAY *
+		McKathlin.DayNight.MINUTES_PER_HOUR;
+	
+	McKathlin.DayNight.DEFAULT_TONE = [0, 0, 0, 0];
+	
+	//=============================================================================
+	// Parameter parsing
+	//=============================================================================
+	
+	McKathlin.DayNight.parseTimeAsMinutes = function(timeJson) {
+		var timeStruct = JSON.parse(timeJson);
+		var minutes = Number(timeStruct.minutes);
+		var hours;
+		if (timeStruct.ampm) {
+			// It's a time of day.
+			hours = timeStruct.hour % 12;
+			if ('PM' == timeStruct.ampm) {
+				hours += 12;
+			}
+		} else {
+			hours = Number(timeStruct.hours);
+		}
+		minutes += hours * McKathlin.DayNight.MINUTES_PER_HOUR;
+		return minutes;
+	};
+
+	// Converts RGBG JSON string into the format RPG Maker uses when setting tone
+	McKathlin.DayNight.parseTone = function(toneJson) {
+		if (!toneJson) return;
+		var tone = JSON.parse(toneJson);
+		return [Number(tone.red), Number(tone.green),
+			Number(tone.blue), Number(tone.gray)];
+	};
+	
+	McKathlin.DayNight.parseSimpleToneList = function(toneListJson) {
+		if (!toneListJson) return;
+		var list = JSON.parse(toneListJson);
+		for (var i = 0; i < list.length; i++) {
+			list[i] = McKathlin.DayNight.parseTone(list[i]);
+		}
+		return list;
+	};
+	
+	McKathlin.DayNight.parsePresets = function(lightingPresetJson) {
+		if (!lightingPresetJson) return;
+		var structList = JSON.parse(lightingPresetJson);
+		var lookup = {};
+		for (const presetJson of structList) {
+			let preset = JSON.parse(presetJson);
+			let key = preset.keyword.toLowerCase();
+			preset.tone = McKathlin.DayNight.parseTone(preset.tone);
+			preset.picture_overlay = this.parsePicture(
+				preset.picture_overlay);
+			lookup[key] = preset;
+		};
+		this.autoAssignPictureNumbers(lookup);
+		return lookup;
+	};
+
+	McKathlin.DayNight.parsePicture = function(pictureJson) {
+		if (!pictureJson) {
+			return null;
+		}
+		var picture = JSON.parse(pictureJson);
+		if (!picture || !picture.filename) {
+			return null;
+		}
+
+		// Convert properties to their intended types.
+		for (const key in picture) {
+			if ("filename" == key) {
+				// Filename remains a string.
+			} else {
+				// All other properties are numeric.
+				picture[key] = Number(picture[key] || 0);
+			}
+		}
+		return picture;
+	};
+
+	McKathlin.DayNight.autoAssignPictureNumbers = function(presetLookup) {
+		const presets = Object.values(presetLookup);
+		const numbersTakenLookup = {};
+
+		// First pass: take note of picture numbers already taken
+		for (const preset of presets) {
+			if (preset && preset.picture_overlay &&
+				preset.picture_overlay.picture_number) {
+				numbersTakenLookup[preset.picture_overlay.picture_number] = true;
+			}
+		}
+
+		// Second pass: assign to not-yet-taken picture numbers
+		var nextNumber = McKathlin.DayNight.Param.OverlayStartingPictureNumber;
+		for (const preset of presets) {
+			if (preset && preset.picture_overlay &&
+				!preset.picture_overlay.picture_number) {
+				while (numbersTakenLookup[nextNumber]) {
+					nextNumber++;
+				}
+				preset.picture_overlay.picture_number = nextNumber;
+				numbersTakenLookup[nextNumber] = true;
+			}
+		}
+	};
+	
+	//=============================================================================
+	// Parameter init
+	//=============================================================================
+	
+	McKathlin.DayNight.Parameters = PluginManager.parameters(pluginName);
+	McKathlin.DayNight.Param = McKathlin.DayNight.Param || {};
+	
+	McKathlin.DayNight.Param.DaytimeSwitch = Number(
+		McKathlin.DayNight.Parameters['Daytime Switch']);
+	McKathlin.DayNight.Param.NightSwitch = Number(
+		McKathlin.DayNight.Parameters['Night Switch']);
+	
+	McKathlin.DayNight.Param.DaysPassedVariable = Number(
+		McKathlin.DayNight.Parameters['Days Passed Variable']);
+	McKathlin.DayNight.Param.CurrentHourVariable = Number(
+		McKathlin.DayNight.Parameters['Current Hour Variable']);
+	McKathlin.DayNight.Param.CurrentMinuteVariable = Number(
+		McKathlin.DayNight.Parameters['Current Minute Variable']);
+
+	McKathlin.DayNight.Param.NewGameStartTimeAsMinutes = McKathlin.DayNight.parseTimeAsMinutes(
+		McKathlin.DayNight.Parameters['New Game Start Time']);
+	McKathlin.DayNight.Param.DawnStartTimeAsMinutes = McKathlin.DayNight.parseTimeAsMinutes(
+		McKathlin.DayNight.Parameters['Dawn Start Time']);
+	McKathlin.DayNight.Param.DayStartTimeAsMinutes = McKathlin.DayNight.parseTimeAsMinutes(
+		McKathlin.DayNight.Parameters['Day Start Time']);
+	McKathlin.DayNight.Param.DuskStartTimeAsMinutes = McKathlin.DayNight.parseTimeAsMinutes(
+		McKathlin.DayNight.Parameters['Dusk Start Time']);
+	McKathlin.DayNight.Param.NightStartTimeAsMinutes = McKathlin.DayNight.parseTimeAsMinutes(
+		McKathlin.DayNight.Parameters['Night Start Time']);
+	
+	McKathlin.DayNight.Param.MinutesPerStep = Number(
+		McKathlin.DayNight.Parameters['Minutes Per Step']);
+	McKathlin.DayNight.Param.MinutesPerTonePhase = Number(
+		McKathlin.DayNight.Parameters['Minutes Per Tone Phase']);
+	McKathlin.DayNight.Param.ToneFadeDuration = Number(
+		McKathlin.DayNight.Parameters['Tone Fade Duration']);
+
+	McKathlin.DayNight.Param.DawnTonePhases = McKathlin.DayNight.parseSimpleToneList(
+		McKathlin.DayNight.Parameters['Dawn Tone Phases']);
+	McKathlin.DayNight.Param.DaylightTone = McKathlin.DayNight.parseTone(
+		McKathlin.DayNight.Parameters['Daylight Tone']);
+	McKathlin.DayNight.Param.DuskTonePhases = McKathlin.DayNight.parseSimpleToneList(
+		McKathlin.DayNight.Parameters['Dusk Tone Phases']);
+	McKathlin.DayNight.Param.NightTone = McKathlin.DayNight.parseTone(
+		McKathlin.DayNight.Parameters['Night Tone']);
+	
+	McKathlin.DayNight.Param.OutdoorLightingKeyword =
+		McKathlin.DayNight.Parameters['Outdoor Lighting Keyword'].toLowerCase();
+	// Overlay Starting Picture Number is parsed first,
+	// so that preset parsing can reference it to auto-assign picture numbers.
+	McKathlin.DayNight.Param.OverlayStartingPictureNumber = Number(
+		McKathlin.DayNight.Parameters['Overlay Starting Picture Number']);
+	McKathlin.DayNight.Param.SimpleLightingPresets = McKathlin.DayNight.parsePresets(
+		McKathlin.DayNight.Parameters['Simple Lighting Presets']);
+	McKathlin.DayNight.Param.DefaultLightingKeyword =
+		McKathlin.DayNight.Parameters['Default Lighting Keyword'].toLowerCase();
+
+	// Bloodmoon parameters
+	McKathlin.DayNight.Param.EnableBloodmoon = "true" ==
+		McKathlin.DayNight.Parameters['Enable Bloodmoon'];
+	McKathlin.DayNight.Param.BloodmoonNightSwitch = Number(
+		McKathlin.DayNight.Parameters['Bloodmoon Night Switch']);
+	McKathlin.DayNight.Param.BloodmoonPhaseSwitch = Number(
+		McKathlin.DayNight.Parameters['Bloodmoon Phase Switch']);
+	McKathlin.DayNight.Param.MoonPhaseVariable = Number(
+		McKathlin.DayNight.Parameters['Moon Phase Variable']);
+	McKathlin.DayNight.Param.DaysInMoonCycle = Number(
+		McKathlin.DayNight.Parameters['Days in Moon Cycle']);
+	McKathlin.DayNight.Param.NightsBeforeFirstBloodmoon = Number(
+		McKathlin.DayNight.Parameters['Nights Before First Bloodmoon']);
+	McKathlin.DayNight.Param.BloodmoonDuskTonePhases = McKathlin.DayNight.parseSimpleToneList(
+		McKathlin.DayNight.Parameters['Bloodmoon Dusk Tone Phases']);
+	McKathlin.DayNight.Param.BloodmoonNightTone = McKathlin.DayNight.parseTone(
+		McKathlin.DayNight.Parameters['Bloodmoon Night Tone']);
+	McKathlin.DayNight.Param.BloodmoonDawnTonePhases = McKathlin.DayNight.parseSimpleToneList(
+		McKathlin.DayNight.Parameters['Bloodmoon Dawn Tone Phases']);
+
+	// derived 'parameters'
+	McKathlin.DayNight.Param.ReservedSwitches = [
+		McKathlin.DayNight.Param.DaytimeSwitch,
+		McKathlin.DayNight.Param.NightSwitch,
+		McKathlin.DayNight.Param.BloodmoonNightSwitch,
+		McKathlin.DayNight.Param.BloodmoonPhaseSwitch
+	];
+	McKathlin.DayNight.Param.ReservedVariables = [
+		McKathlin.DayNight.Param.DaysPassedVariable, 
+		McKathlin.DayNight.Param.CurrentHourVariable, 
+		McKathlin.DayNight.Param.CurrentMinuteVariable,
+		McKathlin.DayNight.Param.MoonPhaseVariable
+	];
+	McKathlin.DayNight.Param.DawnEndTimeAsMinutes = McKathlin.DayNight.Param.DawnStartTimeAsMinutes + 
+		(McKathlin.DayNight.Param.DawnTonePhases.length * McKathlin.DayNight.Param.MinutesPerTonePhase);
+	McKathlin.DayNight.Param.DuskEndTimeAsMinutes = McKathlin.DayNight.Param.DuskStartTimeAsMinutes + 
+		(McKathlin.DayNight.Param.DuskTonePhases.length * McKathlin.DayNight.Param.MinutesPerTonePhase);
+	McKathlin.DayNight.Param.MiddayAsMinutes =
+		(McKathlin.DayNight.Param.DawnEndTimeAsMinutes +
+			McKathlin.DayNight.Param.DuskStartTimeAsMinutes) / 2;
 
 	//=============================================================================
 	// TimeSpan class
@@ -491,165 +926,32 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		return new McKathlin.timeSpan(0, 0, minuteDifference);
 	};
 
-
+	McKathlin.DayNightCycle = new McKathlin.TimeSpan();
+	
 	//=============================================================================
 	// Time parsing
 	//=============================================================================
 	
-	McKathlin.DayNight.parseTimeOfDay = function(timeString) {
-		var match = timeString.match(/(\d{1,2}):(\d{2}) ?(?:([ap])m?)?/i);
-		if (!match) {
-			throw new Error('Invalid time-of-day string: ' + timeString);
-		}
-		var hours = Number(match[1]);
-		var minutes = Number(match[2]);
-		if (match[3]) { // AM or PM suffix
-			if ('P' == match[3].toUpperCase()) { // PM
-				if (12 != hours) { // 12:XX PM == 12:XX military time.
-					hours += 12; // e.g. 7:15 PM == 19:15 military time.
-				}
-			}
-			else { // AM
-				if (12 == hours) {
-					hours = 0; // 12:XX AM == 00:XX military time.
-				}
-			}
-		}
-		return new McKathlin.TimeSpan(0, hours, minutes);
+	McKathlin.DayNight.parseTimeSpan = function(timeSpanJson) {
+		// TODO: rewrite for MV commands
+		var timeSpanStruct = JSON.parse(timeSpanJson);
+		return new McKathlin.TimeSpan(0, Number(timeSpanStruct.hours), Number(timeSpanStruct.minutes));
 	};
 	
-	McKathlin.DayNight.parseTimeSpan = function(timeSpanString) {
-		var days = 0;
-		var hours = 0;
-		var minutes = 0;
-		var match;
-		if (match = timeSpanString.match(/(\d+) ?d/i)) {
-			days = Number(match[1]);
+	McKathlin.DayNight.parseTimeOfDay = function(timeOfDayJson) {
+		// TODO: rewrite for MV commands
+		var tod = JSON.parse(timeOfDayJson);
+		var totalHours = Number(tod.hour) % 12; // 12 functions as 0 hours.
+		if (tod.ampm == 'PM') {
+			totalHours += 12;
 		}
-		if (match = timeSpanString.match(/(\d+) ?h/i)) {
-			hours = Number(match[1]);
-		}
-		if (match = timeSpanString.match(/(\d+) ?m/i)) {
-			minutes = Number(match[1]);
-		}
-		return new McKathlin.TimeSpan(days, hours, minutes);
+		return new McKathlin.TimeSpan(0, totalHours, Number(tod.minutes));
 	};
-
-	//=============================================================================
-	// Tone parsing
-	//=============================================================================
-
-	McKathlin.DayNight.parseTone = function(toneString) {
-		var matches = toneString.match(/(-?\d+)[, ]+(-?\d+)[, ]+(-?\d+)[, ]+(\d+)/);
-		if (!matches) {
-			throw new Error('Tone parse error: ' + toneString);
-		}
-		r = Number.parseInt(matches[1]) || 0;
-		g = Number.parseInt(matches[2]) || 0;
-		b = Number.parseInt(matches[3]) || 0;
-		gray = Number.parseInt(matches[4]) || 0;
-		
-		return [r, g, b, gray];
-	};
-
-	McKathlin.DayNight.parseToneList = function(toneListString) {
-		var matches = toneListString.match(/[\(\[\{]([\-\d, ]+)[\)\]\}]/g);
-		if (!matches) {
-			return new Array(0); // No matches; no tones in the list.
-		}
-		var tones = new Array(matches.length);
-		var i;
-		for (i = 0; i < matches.length; i++) {
-			tones[i] = McKathlin.DayNight.parseTone(matches[i]);
-		}
-		return tones;
-	};
-
-	//=============================================================================
-	// Parameter init
-	//=============================================================================
-	McKathlin.DayNight.Parameters = PluginManager.parameters('McKathlin_DayNight');
-	McKathlin.DayNight.Param = McKathlin.DayNight.Param || {};
-
-	// Data
-	McKathlin.DayNight.Param.CurrentTimeVariableID = Number.parseInt(
-		McKathlin.DayNight.Parameters['Current Time Variable']);
-	if (!McKathlin.DayNight.Param.CurrentTimeVariableID) {
-		window.alert("McKathlin_DayNight's Current Time Variable is not set, " +
-			"so the day-night cycle may not function as intended. " +
-			"Please close this game and enter a valid Current Time Variable ID " +
-			"for the McKathlin_DayNight plugin."
-		);
-	}
-	McKathlin.DayNight.Param.DaytimeSwitchID = Number.parseInt(
-		McKathlin.DayNight.Parameters['Daytime Switch']);
-	McKathlin.DayNight.Param.NightSwitchID = Number.parseInt(
-		McKathlin.DayNight.Parameters['Night Switch']);
-	McKathlin.DayNight.Param.OutdoorLightingKeyword = String(
-		McKathlin.DayNight.Parameters['Outdoor Lighting Keyword']).trim().toLowerCase();
-
-	// Element bonuses
-	McKathlin.DayNight.Param.DaytimeElementalEffectsString = String(
-		McKathlin.DayNight.Parameters['Daytime Elemental Effects']);
-	McKathlin.DayNight.Param.NightElementalEffectsString = String(
-		McKathlin.DayNight.Parameters['Night Elemental Effects']);
-
-	// Timing
-	McKathlin.DayNight.Param.NewGameStartTime = McKathlin.DayNight.parseTimeOfDay(
-		McKathlin.DayNight.Parameters['New Game Start Time']);
-	McKathlin.DayNight.Param.DawnStartTime = McKathlin.DayNight.parseTimeOfDay(
-		McKathlin.DayNight.Parameters['Dawn Start Time']);
-	McKathlin.DayNight.Param.DayStartTime = McKathlin.DayNight.parseTimeOfDay(
-		McKathlin.DayNight.Parameters['Day Start Time']);
-	McKathlin.DayNight.Param.DuskStartTime = McKathlin.DayNight.parseTimeOfDay(
-		McKathlin.DayNight.Parameters['Dusk Start Time']);
-	McKathlin.DayNight.Param.NightStartTime = McKathlin.DayNight.parseTimeOfDay(
-		McKathlin.DayNight.Parameters['Night Start Time']);
-	McKathlin.DayNight.Param.MinutesPerStep = Number.parseInt(
-		McKathlin.DayNight.Parameters['Minutes Per Step']);
-	McKathlin.DayNight.Param.MinutesPerTonePhase = Number(
-		McKathlin.DayNight.Parameters['Minutes Per Tone Phase']);
-	McKathlin.DayNight.Param.ToneFadeDuration = Number.parseInt(
-		McKathlin.DayNight.Parameters['Tone Fade Duration']);
-
-	// Tones
-	McKathlin.DayNight.Param.DawnTonePhases = McKathlin.DayNight.parseToneList(
-		McKathlin.DayNight.Parameters['Dawn Tone Phases']);
-	McKathlin.DayNight.Param.DaylightTone = McKathlin.DayNight.parseTone(
-		McKathlin.DayNight.Parameters['Daylight Tone']);
-	McKathlin.DayNight.Param.DuskTonePhases = McKathlin.DayNight.parseToneList(
-		McKathlin.DayNight.Parameters['Dusk Tone Phases']);
-	McKathlin.DayNight.Param.NightTone = McKathlin.DayNight.parseTone(
-		McKathlin.DayNight.Parameters['Night Tone']);
-
-	// Timing (derived)
-	McKathlin.DayNight.Param.DawnEndTime = McKathlin.DayNight.Param.DawnStartTime +
-		(McKathlin.DayNight.Param.MinutesPerTonePhase * McKathlin.DayNight.Param.DawnTonePhases.length);
-	McKathlin.DayNight.Param.DuskEndTime = McKathlin.DayNight.Param.DuskStartTime +
-		(McKathlin.DayNight.Param.MinutesPerTonePhase * McKathlin.DayNight.Param.DuskTonePhases.length);
-
-	// Simple Lighting Presets
-	McKathlin.DayNight.Param.DefaultLightingKeyword =
-		McKathlin.DayNight.Parameters['Default Lighting Keyword'];
-	McKathlin.DayNight.Param.LightingPresets = new Array();
-	McKathlin.DayNight.Param.LIGHTING_COLLECTION_LENGTH = 12;
-	var i;
-	for (i = 1; i <= McKathlin.DayNight.Param.LIGHTING_COLLECTION_LENGTH; i++) {
-		var keyword = String(
-			McKathlin.DayNight.Parameters['Lighting Preset ' + i + ': Keyword']).toLowerCase();
-		if (!keyword) {
-			continue; 
-		}
-		var tone = McKathlin.DayNight.parseTone(
-			McKathlin.DayNight.Parameters['Lighting Preset ' + i + ': Tone']);
-		McKathlin.DayNight.Param.LightingPresets[keyword] = tone;
-	}
-
+	
 	//=============================================================================
 	// Day-Night timekeeping
 	//=============================================================================
-
-	McKathlin.DayNightCycle = new McKathlin.TimeSpan();
+	
 	McKathlin.DayNightCycle._switching = false;
 
 	Object.defineProperty(McKathlin.DayNightCycle, 'totalMinutes', {
@@ -692,7 +994,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNightCycle.setForwardTo(new McKathlin.TimeSpan(
 			0, 0, McKathlin.DayNight.Param.NewGameStartTimeAsMinutes));
 	};
-
+	
 	//=============================================================================
 	// Lighting application and tone-finding
 	//=============================================================================
@@ -701,9 +1003,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		this.lightingType = presetName;
 		this.isOutside = (this.lightingType == McKathlin.DayNight.Param.OutdoorLightingKeyword);
 		this.mapTone = McKathlin.DayNightCycle.getToneByKeyword(this.lightingType);
-		if (this.mapTone) {
-			$gameScreen.startTint(this.mapTone, duration);
-		}
+		this.pictureOverlay = McKathlin.DayNightCycle.getPictureOverlayByKeyword(this.lightingType);
+		$gameScreen.startTint(this.mapTone, duration);
+		$gameScreen.startPictureOverlay(this.pictureOverlay, duration);
 	};
 
 	McKathlin.DayNightCycle.getToneByKeyword = function(keyword) {
@@ -752,20 +1054,151 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	}
 
 	//=============================================================================
-	// Game Switches protection
+	// Screen Picture Overlays
 	//=============================================================================
+	// Picture overlay lookup
+	//-----------------------------------------------------------------------------
 
+	McKathlin.DayNightCycle.getPictureOverlayByKeyword = function(keyword) {
+		if (keyword) {
+			let key = keyword.toLowerCase();
+			let preset = McKathlin.DayNight.Param.SimpleLightingPresets[key];
+			if (preset) {
+				return preset.picture_overlay;
+			}
+		}
+		return null;
+	};
+
+	//-----------------------------------------------------------------------------
+	// Picture overlay pre-loading
+	//-----------------------------------------------------------------------------
+
+	// Alias method
+	McKathlin.DayNight.Scene_Boot_loadSystemImages =
+		Scene_Boot.prototype.loadSystemImages;
+	Scene_Boot.prototype.loadSystemImages = function() {
+		McKathlin.DayNight.Scene_Boot_loadSystemImages.call(this);
+		McKathlin.DayNight.preLoadPictureOverlays();
+	};
+
+	McKathlin.DayNight.preLoadPictureOverlays = function() {
+		const presets = Object.values(
+			McKathlin.DayNight.Param.SimpleLightingPresets);
+		for (const preset of presets) {
+			if (preset && preset.picture_overlay && preset.picture_overlay.filename) {
+				ImageManager.loadPicture(preset.picture_overlay.filename);
+			}
+		}
+	};
+
+	//-----------------------------------------------------------------------------
+	// Picture overlay opacity changes
+	//-----------------------------------------------------------------------------
+
+	// New method
+	// Start showing the picture overlay.
+	// Its opacity will increase to full over the duration (in frames) given.
+	Game_Screen.prototype.startPictureOverlay = function(picture, duration) {
+		if (!picture || !picture.filename) {
+			this.clearPictureOverlay(duration);
+			return;
+		}
+		if (picture == this._lastOverlayPicture) {
+			// Exact same overlay; no need to change.
+			return;
+		}
+
+		const INVISIBLE_OPACITY = 0;
+		const SIGMOID_EASING = 3;
+		const pictureId = this.realPictureId(picture.picture_number);
+		
+		if (0 == duration) {
+			// Instant change.
+			if (this._lastOverlayPicture &&
+				this._lastOverlayPicture.picture_number != picture.picture_number) {
+				this.erasePicture(this._lastOverlayPicture.picture_number);
+			}
+			this.showPicture(pictureId, picture.filename, picture.origin,
+				picture.x, picture.y, picture.width_percent, picture.height_percent,
+				picture.opacity, picture.blend_mode);
+		} else if (this._lastOverlayPicture &&
+			picture.picture_number == this._lastOverlayPicture.picture_number) {
+			// This overlay has the same picture number as the last one.
+			// If picture file has changed, replace it, but with a warning.
+			if (picture.filename != this._lastOverlayPictureFilename) {
+				console.warn("Transition of picture overlays assigned to the " +
+					"same picture number will be abrupt.\n" +
+					"To transition gradually, assign them different picture numbers,\n" +
+					"or leave picture number blank for automatic assignment.");
+				let last = this._lastOverlayPicture;
+				this.showPicture(pictureId, picture.filename, last.origin,
+					last.x, last.y, last.width_percent, last.height_percent,
+					last.opacity, last.blend_mode);
+			}
+			// Move picture to match new properties.
+			this.movePicture(pictureId, picture.origin, picture.x, picture.y,
+				picture.width_percent, picture.height_percent, picture.opacity,
+				picture.blend_mode, duration, SIGMOID_EASING);
+
+		} else {
+			// Different picture numbers. Fade out the old; fade in the new.
+			this.clearPictureOverlay(duration);
+
+			// Start the new overlay at opacity zero.
+			this.showPicture(pictureId, picture.filename, picture.origin,
+				picture.x, picture.y, picture.width_percent, picture.height_percent,
+				INVISIBLE_OPACITY, picture.blend_mode);
+
+			// Fade it in over time.
+			this.movePicture(pictureId, picture.origin, picture.x, picture.y,
+				picture.width_percent, picture.height_percent, picture.opacity,
+				picture.blend_mode, duration, SIGMOID_EASING);
+		}
+		this._lastOverlayPicture = picture;
+	};
+
+	// Remove the current picture overlay, if any.
+	// Its opacity will fade to zero over the duration (in frames) given.
+	Game_Screen.prototype.clearPictureOverlay = function(duration) {
+		if (!this._lastOverlayPicture) {
+			// Nothing to clear.
+			return;
+		}
+		const pictureId = this.realPictureId(this._lastOverlayPicture.picture_number);
+		if (duration > 0) {
+			// Fade the picture to transparent.
+			let pic = this._lastOverlayPicture;
+			const INVISIBLE_OPACITY = 0;
+			const SIGMOID_EASING = 3; // slow to fast to slow change
+			// Change picture to transparent (invisible) over the given duration.
+			this.movePicture(pictureId, pic.origin, pic.x, pic.y,
+				pic.width_percent, pic.height_percent, INVISIBLE_OPACITY,
+				pic.blend_mode, duration, SIGMOID_EASING);
+		} else {
+			// clear instantly
+			this.erasePicture(pictureId);
+		}
+		this._lastOverlayPicture = null;
+	};
+	
+	//=============================================================================
+	// Game Variables and Switches management
+	//=============================================================================
+	
+	// extended method
 	McKathlin.DayNight.DataManager_setupNewGame = DataManager.setupNewGame;
 	DataManager.setupNewGame = function() {
 		McKathlin.DayNight.DataManager_setupNewGame.call(this);
 		McKathlin.DayNightCycle.reset();
 	};
-
+	
+	// extended method
+	// protects reserved switches from being set outside this plugin.
 	McKathlin.DayNight.Game_Switches_setValue = Game_Switches.prototype.setValue;
 	Game_Switches.prototype.setValue = function(switchId, value) {
-		if (switchId > 0 && !McKathlin.DayNight._switching) {
-			if (switchId == McKathlin.Param.DaytimeSwitchID ||
-				switchId == McKathlin.Param.NightSwitchID) {
+		if (switchId > 0 && !McKathlin.DayNightCycle._switching) {
+			if (McKathlin.DayNight.Param.ReservedSwitches.includes(switchId)) {
 				throw new Error("Switch " + switchId +
 					" is reserved for use by McKathlin.DayNight plugin," +
 					" and should not be set outside of it."
@@ -774,11 +1207,25 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		}
 		McKathlin.DayNight.Game_Switches_setValue.call(this, switchId, value);
 	};
+	
+	McKathlin.DayNight.Game_Variables_setValue = Game_Variables.prototype.setValue;
+	Game_Variables.prototype.setValue = function(variableId, value) {
+		if (variableId > 0 && !McKathlin.DayNightCycle._switching) {
+			if (McKathlin.DayNight.Param.ReservedVariables.includes(variableId)) {
+				throw new Error("Variable " + variableId +
+					" is reserved for use by McKathlin.DayNight plugin," +
+					" and should not be set outside of it."
+				);
+			}
+		}
+		McKathlin.DayNight.Game_Variables_setValue.call(this, variableId, value);
+	};
 
 	//=============================================================================
-	// Map Notetags
+	// Map Notetag General Utilities
 	//=============================================================================
 	McKathlin.Core = McKathlin.Core || {};
+	McKathlin.Core.NOTETAG_REGEX = /<[^<>]*>/g;
 	
 	McKathlin.Core.includesSimpleNotetag = function(note, notetagName) {
 		simpleRegex = new RegExp('<' + notetagName + '>', 'i');
@@ -798,7 +1245,11 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			}
 		}
 	};
-
+	
+	//=============================================================================
+	// Map Notetags for Day-Night and Lighting
+	//=============================================================================
+	
 	McKathlin.DayNight.getStepNotetag = function(note) {
 		var stepString = McKathlin.Core.getNotetagValueIn(note, 'day-?night');
 		if (!stepString) {
@@ -827,23 +1278,25 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		return lightingWord ? lightingWord.toLowerCase() :
 			McKathlin.DayNight.Param.DefaultLightingKeyword;
 	};
-
-	//-----------------------------
-	// new map variables in action
-
+	
+	// Game_Map on time changed
+	// new method
 	Game_Map.prototype.onTimeChanged = function() {
 		if (!this.isOutside) return;
 		
-		var newTone = LL.DayNight.getOutsideTone();
+		var newTone = McKathlin.DayNightCycle.getOutsideTone();
 		if (newTone == this.mapTone) return;
 		
 		this.mapTone = newTone;
-		$gameScreen.startTint(this.mapTone, LL.Param.ToneFadeDuration);
+		$gameScreen.startTint(this.mapTone, McKathlin.DayNight.Param.ToneFadeDuration);
 	};
-
+	
+	// Game_Map setup
+	// extended method
 	McKathlin.DayNight.Game_Map_setup = Game_Map.prototype.setup;
 	Game_Map.prototype.setup = function(mapId) {
 		McKathlin.DayNight.Game_Map_setup.call(this, mapId);
+
 		const note = $dataMap.note || "";
 		this.minutesPerStep = McKathlin.DayNight.getStepNotetag(note);
 
@@ -851,7 +1304,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		const INSTANT_DURATION = 0;
 		this.applyLightingPreset(lightingType, INSTANT_DURATION);
 	};
-
+	
 	//=============================================================================
 	// Party Step
 	//=============================================================================
@@ -860,23 +1313,208 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	Game_Party.prototype.increaseSteps = function() {
 		McKathlin.DayNight.Game_Party_increaseSteps.call(this);
 		if ($gameMap && $gameMap.minutesPerStep > 0) {
+			console.log("Current time:", McKathlin.DayNightCycle.toString());
 			McKathlin.DayNightCycle.addMinutes($gameMap.minutesPerStep);
+		}
+	};
+	
+	//=============================================================================
+	// Plugin Commands
+	//=============================================================================
+	
+	McKathlin.DayNight.Game_Interpreter_pluginCommand =
+		Game_Interpreter.prototype.pluginCommand;
+	Game_Interpreter.prototype.pluginCommand = function(command, args) {
+		if (/^day-?night$/i.test(command) == false) {
+			// Not a DayNight command.
+			return McKathlin.DayNight.Game_Interpreter_pluginCommand.call(
+				this, command, args);
+		}
+
+		if (args.length == 0) {
+			console.warn("Incomplete DayNight plugin command");
+			return;
+		}
+		
+		let actionWord = args[0].toLowerCase();
+		let nextWord = args.length > 1 ? args[1].toLowerCase() : '';
+
+		// Check if it's a lighting command.
+		if (actionWord.includes('light') || nextWord.startsWith('light')) {
+			let duration = 0;
+			if (args.length > 0) {
+				duration = Number.parseInt(args[args.length - 1]);
+			}
+
+			if (actionWord.startsWith('reset')) {
+				// Reset Lighting
+				if (Number.isNaN(duration)) {
+					duration = 0;
+				}
+				return McKathlin.DayNight.commandResetLighting(duration);
+			} else {
+				// Use Lighting Preset
+				let presetName = null;
+				if (Number.isNaN(duration) || args.length <= 1) {
+					duration = 0;
+					presetName = args[args.length - 1];
+				} else {
+					presetName = args[args.length - 2];
+				}
+				return McKathlin.DayNight.commandUseLightingPreset(
+					presetName, duration);
+			}
+		}
+
+		// A DayNight command not related to lighting is a time command.
+		const argIndex = nextWord == 'time' ? 2 : 1;
+		const timeArg = args.slice(argIndex).join(' ');
+		if (actionWord.startsWith('set')) {
+			// Set Time
+			return McKathlin.DayNight.commandSetTime(timeArg);
+		} else if (actionWord.startsWith('add')) {
+			// Add Time
+			return McKathlin.DayNight.commandAddTime(timeArg);
+		} else if (actionWord.startsWith('reset')) {
+			// Reset Time
+			return McKathlin.DayNight.commandResetTime();
+		} else {
+			// Unknown Command
+			console.warn(
+				"Unrecognized DayNight plugin command:",
+				command,
+				args.join(' '),
+			);
+		}
+	};
+
+	//-- Set Time --
+	McKathlin.DayNight.commandSetTime = function(timeStr) {
+		var time = McKathlin.DayNight.parseTimeOfDay(timeStr);
+		McKathlin.DayNightCycle.setForwardTo(time);
+	};
+	
+	//-- Add Time --
+	McKathlin.DayNight.commandAddTime = function(timeSpanStr) {
+		var timeSpan = McKathlin.DayNight.parseTimeSpan(timeSpanStr);
+		McKathlin.DayNightCycle.add(timeSpan);
+	};
+	
+	//-- Reset Time --
+	McKathlin.DayNight.commandResetTime = function() {
+		McKathlin.DayNightCycle.reset();
+	};
+	
+	//-- Reset Lighting --
+	McKathlin.DayNight.commandResetLighting = function(duration) {
+		const presetName = McKathlin.DayNight.getLightingNotetag($dataMap.note);
+		$gameMap.applyLightingPreset(presetName, duration);
+	};
+	
+	//-- Use Lighting Preset --
+	McKathlin.DayNight.commandUseLightingPreset = function(presetName, duration) {
+		if (presetName) {
+			$gameMap.applyLightingPreset(presetName, duration || 0);
+		} else {
+			console.warn("Use Lighting Preset: no preset name given!");
 		}
 	};
 
 	//=============================================================================
-	// Plugin Commands
+	// Bloodmoon features
 	//=============================================================================
 
-	McKathlin.DayNight.Game_Interpreter_pluginCommand =
-		Game_Interpreter.prototype.pluginCommand;
-	Game_Interpreter.prototype.pluginCommand = function(command, args) {
-		McKathlin.DayNight.Game_Interpreter_pluginCommand.call(this, command, args);
-		if (false == /^day-?night$/i.test(command)) {
-			return;
-		}
-		// If we're here, it's a DayNight command.
-		// TODO: finish writing this
-	}
+	if (McKathlin.DayNight.Param.EnableBloodmoon) {
+		//-------------------------------------------------------------------------
+		// Moon phase calculation helps
+		//-------------------------------------------------------------------------
+		McKathlin.DayNight.Param.MoonPhaseIndex =
+			McKathlin.DayNight.Param.NightsBeforeFirstBloodmoon %
+				McKathlin.DayNight.Param.DaysInMoonCycle;
 
+		McKathlin.TimeSpan.prototype.isBloodmoonNight = function(isForTones=false) {
+			return this.isNight() && this.isBloodmoonPhase(isForTones);
+		};
+
+		McKathlin.TimeSpan.prototype.isBloodmoonPhase = function(isForTones=false) {
+			return this.getMoonPhase(isForTones) == 0;
+		};
+
+		McKathlin.TimeSpan.prototype.getMoonPhase = function(isForTones=false) {
+			const cutoffTime = isForTones ?
+				McKathlin.DayNight.Param.MiddayAsMinutes :
+				McKathlin.DayNight.Param.DayStartTimeAsMinutes;
+			var nightsPassed = this.getDays();
+			if (this.getMinutesOfDay() < cutoffTime) {
+				nightsPassed -= 1;
+			}
+			if (nightsPassed < McKathlin.DayNight.Param.NightsBeforeFirstBloodmoon) {
+				return -1;
+			}
+			return (McKathlin.DayNight.Param.DaysInMoonCycle + nightsPassed - McKathlin.DayNight.Param.MoonPhaseIndex)
+				% McKathlin.DayNight.Param.DaysInMoonCycle;
+		};
+
+		//-------------------------------------------------------------------------
+		// Switch setting
+		//-------------------------------------------------------------------------
+
+		// Alias method
+		// Adds Bloodmoon variable and switch setting.
+		McKathlin.DayNightCycle.updateTime_noBloodmoon =
+			McKathlin.DayNightCycle.updateTime;
+		McKathlin.DayNightCycle.updateTime = function() {
+			McKathlin.DayNightCycle.updateTime_noBloodmoon.call(this);
+
+			const moonPhase = this.getMoonPhase();
+			const isBloodmoon = 0 == moonPhase;
+			const isDay = this.isDaytime();
+
+			$gameVariables.setValue(
+				McKathlin.DayNight.Param.MoonPhaseVariable, moonPhase);
+			$gameSwitches.setValue(
+				McKathlin.DayNight.Param.BloodmoonPhaseSwitch, isBloodmoon);
+			$gameSwitches.setValue(
+				McKathlin.DayNight.Param.BloodmoonNightSwitch, isBloodmoon && !isDay);
+		};
+
+		//-------------------------------------------------------------------------
+		// Tone finding
+		//-------------------------------------------------------------------------
+
+		// Alias method
+		McKathlin.DayNightCycle.getOutsideTone_noBloodmoon = 
+			McKathlin.DayNightCycle.getOutsideTone;
+		McKathlin.DayNightCycle.getOutsideTone = function() {
+			if (!this.isBloodmoonPhase(true)) {
+				return McKathlin.DayNightCycle.getOutsideTone_noBloodmoon.call(this);
+			}
+			var time = this.getMinutesOfDay();
+			if (time < McKathlin.DayNight.Param.DawnStartTimeAsMinutes) {
+				// night, between midnight and dawn
+				return McKathlin.DayNight.Param.BloodmoonNightTone;
+			}
+			else if (time < McKathlin.DayNight.Param.DawnEndTimeAsMinutes) {
+				// dawn
+				phase = Math.floor((time - McKathlin.DayNight.Param.DawnStartTimeAsMinutes) /
+					McKathlin.DayNight.Param.MinutesPerTonePhase);
+				return McKathlin.DayNight.Param.BloodmoonDawnTonePhases[phase];
+			}
+			else if (time < McKathlin.DayNight.Param.DuskStartTimeAsMinutes) {
+				// daytime light is after dawn and before dusk
+				return McKathlin.DayNight.Param.DaylightTone;
+			}
+			else if (time < McKathlin.DayNight.Param.DuskEndTimeAsMinutes) {
+				phase = Math.floor((time - McKathlin.DayNight.Param.DuskStartTimeAsMinutes) /
+					McKathlin.DayNight.Param.MinutesPerTonePhase);
+				return McKathlin.DayNight.Param.BloodmoonDuskTonePhases[phase];
+			}
+			else {
+				// night, between dusk and midnight
+				return McKathlin.DayNight.Param.BloodmoonNightTone;
+			}
+		};
+
+	} // endif Bloodmoon enabled
+	
 })();
