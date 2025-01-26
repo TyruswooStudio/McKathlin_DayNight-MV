@@ -939,6 +939,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 
 	Object.defineProperty(McKathlin.DayNightCycle, 'totalMinutes', {
 		get: function() {
+			if (Number.isNaN($gameSystem.totalMinutes)) {
+				$gameSystem.totalMinutes = 0;
+			}
 			return $gameSystem.totalMinutes;
 		},
 		set: function(value) {
