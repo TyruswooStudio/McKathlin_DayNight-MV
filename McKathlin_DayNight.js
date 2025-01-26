@@ -138,7 +138,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *   Changes the time back to game start time on day 0.
  * 
  * Set Lighting Dark
- *   Applies the lighting preset named Dark.
+ *   Applies the lighting preset named Dark for the rest of the player's time
+ *   on this map.
+ *   You may use the keyword of any one lighting preset you wish to apply.
  * 
  * Reset Lighting
  *   Resets the lighting conditions to the preset specified in the current
@@ -165,7 +167,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * ============================================================================
  * Version History:
  *
- * v2.1.0  Pending
+ * v2.1.0  1/25/2025
  *        - Day-Night Cycle plugin released for RPG Maker MV
  *        - Includes Bloodmoon, picture overlay, and all other features
  *          from MZ Day-Night Cycle v2.1.0
