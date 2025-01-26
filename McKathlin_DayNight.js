@@ -42,6 +42,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * it keeps track of time of day as the cycle advances,
  * auto-updates variables and switches based on time of day,
  * and applies screen tones to areas marked as outdoors.
+ * It also has an optional Bloodmoon feature. If this feature is turned on,
+ * there will periodically be a night with its own distinct tones and switch.
  * 
  * ===========================================================================
  * How to Start Using This Plugin                                               
@@ -129,8 +131,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *   In-universe time passed only moves forward, so setting the time earlier
  *   than the present time will advance in-universe time to the next day.
  *
- * Add Time 2 hours 30 minutes
- *   Moves the time of day forward the specified amount.
+ * Add Time 2h 30m
+ *   Moves the time of day forward 2 hours and 30 minutes.
  *
  * Reset Time
  *   Changes the time back to game start time on day 0.
@@ -828,7 +830,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		configurable: true
 	});
 
-	McKathlin.TimeSpan.prototype.initialize = function(days, hours, minutes) {
+	McKathlin.TimeSpan.prototype.initialize = function(
+		days = 0, hours = 0, minutes = 0
+	) {
 		days = days || 0;
 		hours = hours || 0;
 		minutes = minutes || 0;
@@ -886,8 +890,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 
 	// Either a TimeSpan or a number of minutes can be added; they are equivalent.
 	McKathlin.TimeSpan.prototype.add = function(timeSpan) {
-		this.totalMinutes += timeSpan.totalMinutes;
-		return this.totalMinutes;
+		return this.addMinutes(timeSpan.totalMinutes);
 	};
 	
 	McKathlin.TimeSpan.prototype.addMinutes = function(minutes) {
@@ -927,27 +930,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 
 	McKathlin.DayNightCycle = new McKathlin.TimeSpan();
-	
-	//=============================================================================
-	// Time parsing
-	//=============================================================================
-	
-	McKathlin.DayNight.parseTimeSpan = function(timeSpanJson) {
-		// TODO: rewrite for MV commands
-		var timeSpanStruct = JSON.parse(timeSpanJson);
-		return new McKathlin.TimeSpan(0, Number(timeSpanStruct.hours), Number(timeSpanStruct.minutes));
-	};
-	
-	McKathlin.DayNight.parseTimeOfDay = function(timeOfDayJson) {
-		// TODO: rewrite for MV commands
-		var tod = JSON.parse(timeOfDayJson);
-		var totalHours = Number(tod.hour) % 12; // 12 functions as 0 hours.
-		if (tod.ampm == 'PM') {
-			totalHours += 12;
-		}
-		return new McKathlin.TimeSpan(0, totalHours, Number(tod.minutes));
-	};
-	
+
 	//=============================================================================
 	// Day-Night timekeeping
 	//=============================================================================
@@ -1313,7 +1296,6 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	Game_Party.prototype.increaseSteps = function() {
 		McKathlin.DayNight.Game_Party_increaseSteps.call(this);
 		if ($gameMap && $gameMap.minutesPerStep > 0) {
-			console.log("Current time:", McKathlin.DayNightCycle.toString());
 			McKathlin.DayNightCycle.addMinutes($gameMap.minutesPerStep);
 		}
 	};
@@ -1418,6 +1400,48 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		} else {
 			console.warn("Use Lighting Preset: no preset name given!");
 		}
+	};
+
+	//-----------------------------------------------------------------------------
+	// Time parsing static helpers
+	//-----------------------------------------------------------------------------	
+	McKathlin.DayNight.parseTimeOfDay = function(timeString) {
+		var match = timeString.match(/(\d{1,2}):(\d{2}) ?(?:([ap])m?)?/i);
+		if (!match) {
+			throw new Error('Invalid time-of-day string: ' + timeString);
+		}
+		var hours = Number(match[1]);
+		var minutes = Number(match[2]);
+		if (match[3]) { // AM or PM suffix
+			if ('P' == match[3].toUpperCase()) { // PM
+				if (12 != hours) { // 12:XX PM == 12:XX military time.
+					hours += 12; // e.g. 7:15 PM == 19:15 military time.
+				}
+			}
+			else { // AM or military time
+				if ('A' == match[3].toUpperCase() && 12 == hours) {
+					hours = 0; // 12:XX AM == 00:XX military time.
+				}
+			}
+		}
+		return new McKathlin.TimeSpan(0, hours, minutes);
+	};
+
+	McKathlin.DayNight.parseTimeSpan = function(timeSpanString) {
+		var days = 0;
+		var hours = 0;
+		var minutes = 0;
+		var match;
+		if (match = timeSpanString.match(/(\d+) ?d/i)) {
+			days = Number(match[1]);
+		}
+		if (match = timeSpanString.match(/(\d+) ?h/i)) {
+			hours = Number(match[1]);
+		}
+		if (match = timeSpanString.match(/(\d+) ?m/i)) {
+			minutes = Number(match[1]);
+		}
+		return new McKathlin.TimeSpan(days, hours, minutes);
 	};
 
 	//=============================================================================
