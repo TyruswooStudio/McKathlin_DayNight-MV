@@ -987,6 +987,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Lighting application and tone-finding
 	//=============================================================================
 	
+	// New method
 	Game_Map.prototype.applyLightingPreset = function(presetName, duration=0) {
 		this.lightingType = presetName;
 		this.isOutside = (this.lightingType == McKathlin.DayNight.Param.OutdoorLightingKeyword);
@@ -1146,6 +1147,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		this._lastOverlayPicture = picture;
 	};
 
+	// New method
 	// Remove the current picture overlay, if any.
 	// Its opacity will fade to zero over the duration (in frames) given.
 	Game_Screen.prototype.clearPictureOverlay = function(duration) {
@@ -1174,14 +1176,14 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Game Variables and Switches management
 	//=============================================================================
 	
-	// extended method
+	// Alias method
 	McKathlin.DayNight.DataManager_setupNewGame = DataManager.setupNewGame;
 	DataManager.setupNewGame = function() {
 		McKathlin.DayNight.DataManager_setupNewGame.call(this);
 		McKathlin.DayNightCycle.reset();
 	};
 	
-	// extended method
+	// Alias method
 	// protects reserved switches from being set outside this plugin.
 	McKathlin.DayNight.Game_Switches_setValue = Game_Switches.prototype.setValue;
 	Game_Switches.prototype.setValue = function(switchId, value) {
@@ -1196,6 +1198,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNight.Game_Switches_setValue.call(this, switchId, value);
 	};
 	
+	// Alias method
 	McKathlin.DayNight.Game_Variables_setValue = Game_Variables.prototype.setValue;
 	Game_Variables.prototype.setValue = function(variableId, value) {
 		if (variableId > 0 && !McKathlin.DayNightCycle._switching) {
@@ -1267,8 +1270,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			McKathlin.DayNight.Param.DefaultLightingKeyword;
 	};
 	
-	// Game_Map on time changed
-	// new method
+	// New method
 	Game_Map.prototype.onTimeChanged = function() {
 		if (!this.isOutside) return;
 		
@@ -1279,8 +1281,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		$gameScreen.startTint(this.mapTone, McKathlin.DayNight.Param.ToneFadeDuration);
 	};
 	
-	// Game_Map setup
-	// extended method
+	// Alias method
 	McKathlin.DayNight.Game_Map_setup = Game_Map.prototype.setup;
 	Game_Map.prototype.setup = function(mapId) {
 		McKathlin.DayNight.Game_Map_setup.call(this, mapId);
@@ -1297,6 +1298,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Party Step
 	//=============================================================================
 
+	// Alias method
 	McKathlin.DayNight.Game_Party_increaseSteps = Game_Party.prototype.increaseSteps;
 	Game_Party.prototype.increaseSteps = function() {
 		McKathlin.DayNight.Game_Party_increaseSteps.call(this);
@@ -1309,13 +1311,16 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Plugin Commands
 	//=============================================================================
 	
+	// Alias method
 	McKathlin.DayNight.Game_Interpreter_pluginCommand =
 		Game_Interpreter.prototype.pluginCommand;
 	Game_Interpreter.prototype.pluginCommand = function(command, args) {
+		// Check for previously defined plugin commands first.
+		McKathlin.DayNight.Game_Interpreter_pluginCommand.call(
+			this, command, args);
+
 		if (/^day-?night$/i.test(command) == false) {
-			// Not a DayNight command.
-			return McKathlin.DayNight.Game_Interpreter_pluginCommand.call(
-				this, command, args);
+			return; // Not a DayNight command. Nothing more to do.
 		}
 
 		if (args.length == 0) {
