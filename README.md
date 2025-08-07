@@ -129,6 +129,9 @@ McKathlin.DayNightCycle.getMinutesOfDay();
 - Day-Night Cycle plugin released for RPG Maker MV
 - Includes Bloodmoon and all other features from MZ Day-Night Cycle v2.1
 
+**v2.1.1** - 8/7/2025
+- Help text updated to show correct examples of MV plugin commands
+
 > **Happy storytelling!**
 > 
 > *McKathlin*
