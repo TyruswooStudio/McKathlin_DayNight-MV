@@ -7,7 +7,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2023 Kathy Bunn and Scott Tyrus Washburn
+ * Copyright (c) 2026 Kathy Bunn and Scott Tyrus Washburn
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ var McKathlin = McKathlin || {};
 McKathlin.DayNight = McKathlin.DayNight || {};
 
 /*:
- * @plugindesc MV 2.1.0 Configure and track a day-night cycle.
+ * @plugindesc MV 2.2.0 Configure and track a day-night cycle.
  * @author McKathlin
  * 
  * @help This plugin tracks a day-night cycle:
@@ -126,25 +126,25 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * ===========================================================================
  * Plugin Command Examples                                               
  * ===========================================================================
- * Set Time 7:05 AM
+ * DayNight set time 7:05 AM
  *   Sets the the time of day to the specified time.
  *   In-universe time passed only moves forward, so setting the time earlier
  *   than the present time will advance in-universe time to the next day.
  *
- * Add Time 2h 30m
+ * DayNight add time 2h 30m
  *   Moves the time of day forward 2 hours and 30 minutes.
  *
- * Reset Time
+ * DayNight reset time
  *   Changes the time back to game start time on day 0.
  * 
- * Set Lighting Dark
+ * DayNight set lighting Dark 30
  *   Applies the lighting preset named Dark for the rest of the player's time
- *   on this map.
+ *   on this map. The lighting transition will last 30 frames, or 1/2 second.
  *   You may use the keyword of any one lighting preset you wish to apply.
  * 
- * Reset Lighting
+ * DayNight reset lighting 60
  *   Resets the lighting conditions to the preset specified in the current
- *   map's notetag.
+ *   map's notetag. The transition lasts 60 frames, equal to 1 second.
  *
  * ===========================================================================
  * Script Call Getter Methods                                             
@@ -172,10 +172,13 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *        - Includes Bloodmoon, picture overlay, and all other features
  *          from MZ Day-Night Cycle v2.1.0
  * 
+ * v2.2.0  4/11/2026
+ *        - Corrected help text
+ * 
  * ============================================================================
  * MIT License
  *
- * Copyright (c) 2023 Kathy Bunn and Scott Tyrus Washburn
+ * Copyright (c) 2026 Kathy Bunn and Scott Tyrus Washburn
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the “Software”), to
@@ -987,7 +990,6 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Lighting application and tone-finding
 	//=============================================================================
 	
-	// New method
 	Game_Map.prototype.applyLightingPreset = function(presetName, duration=0) {
 		this.lightingType = presetName;
 		this.isOutside = (this.lightingType == McKathlin.DayNight.Param.OutdoorLightingKeyword);
@@ -1147,7 +1149,6 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		this._lastOverlayPicture = picture;
 	};
 
-	// New method
 	// Remove the current picture overlay, if any.
 	// Its opacity will fade to zero over the duration (in frames) given.
 	Game_Screen.prototype.clearPictureOverlay = function(duration) {
@@ -1176,14 +1177,14 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Game Variables and Switches management
 	//=============================================================================
 	
-	// Alias method
+	// extended method
 	McKathlin.DayNight.DataManager_setupNewGame = DataManager.setupNewGame;
 	DataManager.setupNewGame = function() {
 		McKathlin.DayNight.DataManager_setupNewGame.call(this);
 		McKathlin.DayNightCycle.reset();
 	};
 	
-	// Alias method
+	// extended method
 	// protects reserved switches from being set outside this plugin.
 	McKathlin.DayNight.Game_Switches_setValue = Game_Switches.prototype.setValue;
 	Game_Switches.prototype.setValue = function(switchId, value) {
@@ -1198,7 +1199,6 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNight.Game_Switches_setValue.call(this, switchId, value);
 	};
 	
-	// Alias method
 	McKathlin.DayNight.Game_Variables_setValue = Game_Variables.prototype.setValue;
 	Game_Variables.prototype.setValue = function(variableId, value) {
 		if (variableId > 0 && !McKathlin.DayNightCycle._switching) {
@@ -1270,7 +1270,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			McKathlin.DayNight.Param.DefaultLightingKeyword;
 	};
 	
-	// New method
+	// Game_Map on time changed
+	// new method
 	Game_Map.prototype.onTimeChanged = function() {
 		if (!this.isOutside) return;
 		
@@ -1281,7 +1282,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		$gameScreen.startTint(this.mapTone, McKathlin.DayNight.Param.ToneFadeDuration);
 	};
 	
-	// Alias method
+	// Game_Map setup
+	// extended method
 	McKathlin.DayNight.Game_Map_setup = Game_Map.prototype.setup;
 	Game_Map.prototype.setup = function(mapId) {
 		McKathlin.DayNight.Game_Map_setup.call(this, mapId);
@@ -1298,7 +1300,6 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Party Step
 	//=============================================================================
 
-	// Alias method
 	McKathlin.DayNight.Game_Party_increaseSteps = Game_Party.prototype.increaseSteps;
 	Game_Party.prototype.increaseSteps = function() {
 		McKathlin.DayNight.Game_Party_increaseSteps.call(this);
@@ -1311,16 +1312,13 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	// Plugin Commands
 	//=============================================================================
 	
-	// Alias method
 	McKathlin.DayNight.Game_Interpreter_pluginCommand =
 		Game_Interpreter.prototype.pluginCommand;
 	Game_Interpreter.prototype.pluginCommand = function(command, args) {
-		// Check for previously defined plugin commands first.
-		McKathlin.DayNight.Game_Interpreter_pluginCommand.call(
-			this, command, args);
-
 		if (/^day-?night$/i.test(command) == false) {
-			return; // Not a DayNight command. Nothing more to do.
+			// Not a DayNight command.
+			return McKathlin.DayNight.Game_Interpreter_pluginCommand.call(
+				this, command, args);
 		}
 
 		if (args.length == 0) {
@@ -1382,13 +1380,13 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 
 	//-- Set Time --
 	McKathlin.DayNight.commandSetTime = function(timeStr) {
-		var time = McKathlin.DayNight.parseTimeOfDay(timeStr);
+		let time = McKathlin.DayNight.parseTimeOfDay(timeStr);
 		McKathlin.DayNightCycle.setForwardTo(time);
 	};
 	
 	//-- Add Time --
 	McKathlin.DayNight.commandAddTime = function(timeSpanStr) {
-		var timeSpan = McKathlin.DayNight.parseTimeSpan(timeSpanStr);
+		let timeSpan = McKathlin.DayNight.parseTimeSpan(timeSpanStr);
 		McKathlin.DayNightCycle.add(timeSpan);
 	};
 	
@@ -1398,15 +1396,15 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 	
 	//-- Reset Lighting --
-	McKathlin.DayNight.commandResetLighting = function(duration) {
+	McKathlin.DayNight.commandResetLighting = function(duration=0) {
 		const presetName = McKathlin.DayNight.getLightingNotetag($dataMap.note);
 		$gameMap.applyLightingPreset(presetName, duration);
 	};
 	
 	//-- Use Lighting Preset --
-	McKathlin.DayNight.commandUseLightingPreset = function(presetName, duration) {
+	McKathlin.DayNight.commandUseLightingPreset = function(presetName, duration=0) {
 		if (presetName) {
-			$gameMap.applyLightingPreset(presetName, duration || 0);
+			$gameMap.applyLightingPreset(presetName, duration);
 		} else {
 			console.warn("Use Lighting Preset: no preset name given!");
 		}

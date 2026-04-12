@@ -87,23 +87,25 @@ unless overridden by an event. For more map lighting options, see the
 
 ## Plugin Command Examples
 
-`Set Time` 7:05 AM
+`DayNight set time 7:05 AM`
 * Sets the the time of day to the specified time.
 * In-universe time passed only moves forward, so setting the time earlier
 than the present time will advance in-universe time to the next day.
 
-`Add Time 2h 30m`
+`DayNight add time 2h 30m`
 * Moves the time of day forward 2 hours and 30 minutes.
 
-`Reset Time`
+`DayNight reset time`
 * Changes the time back to game start time on day 0.
 
-`Set Lighting Dark`
+`DayNight set lighting Dark 30`
 * Applies the lighting preset named Dark for the rest of the player's time on this map.
 * You may use the keyword of any one lighting preset you wish to apply.
+* The lighting transition will last 30 frames, or 1/2 second.
 
-`Reset Lighting`
+`DayNight reset lighting 60`
 * Resets the lighting conditions to the preset specified in the current map's notetag.
+* The transition lasts 60 frames, equal to 1 second.
 
 ## Script Call Getter Methods
 ```                                        
