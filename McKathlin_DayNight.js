@@ -168,13 +168,12 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * Version History:
  *
  * v2.1.0  1/25/2025
- *        - Day-Night Cycle plugin released for RPG Maker MV
- *        - Includes Bloodmoon, picture overlay, and all other features
- *          from MZ Day-Night Cycle v2.1.0
+ *    - Day-Night Cycle plugin released for RPG Maker MV
+ *    - Includes Bloodmoon, picture overlay, and all other features
+ *      from MZ Day-Night Cycle v2.1.0
  * 
  * v2.2.0  4/11/2026
- *        - Corrected help text
- * 
+ *    - Help text updated to show correct examples of MV plugin commands
  * ============================================================================
  * MIT License
  *
