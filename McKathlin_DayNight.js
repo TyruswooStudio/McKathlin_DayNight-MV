@@ -244,6 +244,19 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * @default 60
  * @desc Frames (1/60 sec) over which to tint screen to lighting.
  * 
+ * @param Log Level
+ * @type select
+ * @option All, Including Debug
+ * @value 1
+ * @option Info, Warnings, and Errors
+ * @value 2
+ * @option Warnings and Errors
+ * @value 3
+ * @option Errors Only
+ * @value 4
+ * @default 2
+ * @desc Pick what types of messages log to the F12 console.
+ * 
  * @param Daytime Switch
  * @type switch
  * @desc The switch that signals when it is daytime.
@@ -612,6 +625,13 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNight.MINUTES_PER_HOUR;
 	
 	McKathlin.DayNight.DEFAULT_TONE = [0, 0, 0, 0];
+
+	McKathlin.Log = McKathlin.Log || {
+		DEBUG: 1,
+		INFO: 2,
+		WARN: 3,
+		ERROR: 4
+	};
 	
 	//=============================================================================
 	// Parameter parsing
@@ -721,6 +741,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	McKathlin.DayNight.Parameters = PluginManager.parameters(pluginName);
 	McKathlin.DayNight.Param = McKathlin.DayNight.Param || {};
 	
+	McKathlin.DayNight.Param.LogLevel = Number(
+		McKathlin.DayNight.Parameters['Log Level'] || McKathlin.Log.INFO);
+
 	McKathlin.DayNight.Param.DaytimeSwitch = Number(
 		McKathlin.DayNight.Parameters['Daytime Switch']);
 	McKathlin.DayNight.Param.NightSwitch = Number(
@@ -813,6 +836,46 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			McKathlin.DayNight.Param.DuskStartTimeAsMinutes) / 2;
 
 	//=============================================================================
+	// Logging
+	//=============================================================================
+
+	McKathlin.DayNight.logs = function(myLogLevel) {
+		return McKathlin.DayNight.Param.LogLevel <= myLogLevel;
+	}
+
+	if (McKathlin.DayNight.logs(McKathlin.Log.DEBUG)) {
+		McKathlin.DayNight.debug = function(...args) {
+			console.log("[McKathlin_DayNight]", ...args);
+		};
+	} else {
+		McKathlin.DayNight.debug = function() {};
+	}
+
+	if (McKathlin.DayNight.logs(McKathlin.Log.INFO)) {
+		McKathlin.DayNight.info = function(...args) {
+			console.info("[McKathlin_DayNight]", ...args);
+		};
+	} else {
+		McKathlin.DayNight.info = function() {};
+	}
+	
+	if (McKathlin.DayNight.logs(McKathlin.Log.WARN)) {
+		McKathlin.DayNight.warn = function(...args) {
+			console.warn("[McKathlin_DayNight]", ...args);
+		};
+	} else {
+		McKathlin.DayNight.warn = function() {};
+	}
+
+	if (McKathlin.DayNight.logs(McKathlin.Log.ERROR)) {
+		McKathlin.DayNight.error = function(...args) {
+			console.error("[McKathlin_DayNight]", ...args);
+		};
+	} else {
+		McKathlin.DayNight.error = function() {};
+	}
+
+	//=============================================================================
 	// TimeSpan class
 	//=============================================================================
 	
@@ -841,6 +904,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		days = days || 0;
 		hours = hours || 0;
 		minutes = minutes || 0;
+		McKathlin.DayNight.debug(`Created new TimeSpan: ${days} days, ${hours} hours, ${minutes} minutes`);
 		
 		var totalMins = days * McKathlin.DayNight.MINUTES_PER_DAY;
 		totalMins += hours * McKathlin.DayNight.MINUTES_PER_HOUR;
@@ -874,7 +938,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 
 	McKathlin.TimeSpan.prototype.isDaytime = function() {
-		var timeOfDay = this.getMinutesOfDay();
+		let timeOfDay = this.getMinutesOfDay();
 		return timeOfDay >= McKathlin.DayNight.Param.DayStartTimeAsMinutes &&
 				timeOfDay < McKathlin.DayNight.Param.NightStartTimeAsMinutes;
 	};
@@ -888,8 +952,8 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 
 	McKathlin.TimeSpan.prototype.toString = function() {
-		var hh = this.getHours().toString().padStart(2, '0');
-		var mm = this.getMinutes().toString().padStart(2, '0');
+		let hh = this.getHours().toString().padStart(2, '0');
+		let mm = this.getMinutes().toString().padStart(2, '0');
 		return "" + hh + ":" + mm;
 	};
 
@@ -945,6 +1009,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	Object.defineProperty(McKathlin.DayNightCycle, 'totalMinutes', {
 		get: function() {
 			if (Number.isNaN($gameSystem.totalMinutes)) {
+				McKathlin.DayNight.info(
+					"Total minutes was not set. So we're setting it to 0."
+				);
 				$gameSystem.totalMinutes = 0;
 			}
 			return $gameSystem.totalMinutes;
@@ -957,9 +1024,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 
 	McKathlin.DayNightCycle.changeTimeTo = function(minutes) {
 		this._switching = true;
-		$gameSystem.totalMinutes = minutes;
 
+		$gameSystem.totalMinutes = minutes;
 		this.updateTime();
+
 		this._switching = false;
 
 		$gameMap.onTimeChanged();
@@ -974,6 +1042,11 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		$gameVariables.setValue(McKathlin.DayNight.Param.DaysPassedVariable, this.getDays());
 		$gameVariables.setValue(McKathlin.DayNight.Param.CurrentHourVariable, this.getHours());
 		$gameVariables.setValue(McKathlin.DayNight.Param.CurrentMinuteVariable, this.getMinutes());
+
+		if (McKathlin.DayNight.logs(McKathlin.Log.DEBUG)) {
+			McKathlin.DayNight.debug(isDay ? "Now it is day." : "Now it is night.");
+			McKathlin.DayNight.debug("Current time: " + this.toString());
+		}
 	};
 
 	McKathlin.DayNightCycle.now = function() {
@@ -984,6 +1057,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		McKathlin.DayNightCycle.setTotalMinutes(0);
 		McKathlin.DayNightCycle.setForwardTo(new McKathlin.TimeSpan(
 			0, 0, McKathlin.DayNight.Param.NewGameStartTimeAsMinutes));
+		McKathlin.DayNight.info("Time has been reset to " + this.toString());
 	};
 	
 	//=============================================================================
@@ -997,6 +1071,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		this.pictureOverlay = McKathlin.DayNightCycle.getPictureOverlayByKeyword(this.lightingType);
 		$gameScreen.startTint(this.mapTone, duration);
 		$gameScreen.startPictureOverlay(this.pictureOverlay, duration);
+		McKathlin.DayNight.info(`Applying lighting preset ${presetName} over ${duration} frames`);
 	};
 
 	McKathlin.DayNightCycle.getToneByKeyword = function(keyword) {
@@ -1004,14 +1079,24 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		if (keyword) {
 			keyword = keyword.toLowerCase();
 			if (keyword == McKathlin.DayNight.Param.OutdoorLightingKeyword) {
+				McKathlin.DayNight.debug("Outdoor tone word:", keyword);
 				tone = this.getOutsideTone();
 			} else {
 				let preset = McKathlin.DayNight.Param.SimpleLightingPresets[keyword];
-				tone = preset ? preset.tone : null;
+				if (preset) {
+					tone = preset.tone;
+					McKathlin.DayNight.debug("Tone corresponding to word", keyword, tone);
+				} else {
+					McKathlin.DayNight.warn("Unrecognized tone word:", keyword);
+					tone = null;
+				}
 			}
+		} else {
+			McKathlin.DayNight.warn("No tone word given.");
 		}
 		
 		if (!tone) {
+			McKathlin.DayNight.warn("Using default tone.");
 			tone = McKathlin.DayNight.DEFAULT_TONE;
 		}
 		return tone;
@@ -1021,25 +1106,30 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		var time = this.getMinutesOfDay();
 		if (time < McKathlin.DayNight.Param.DawnStartTimeAsMinutes) {
 			// night, between midnight and dawn
+			McKathlin.DayNight.debug("Outdoor tone is night (after midnight)");
 			return McKathlin.DayNight.Param.NightTone;
 		}
 		else if (time < McKathlin.DayNight.Param.DawnEndTimeAsMinutes) {
 			// dawn
 			phase = Math.floor((time - McKathlin.DayNight.Param.DawnStartTimeAsMinutes) /
 				McKathlin.DayNight.Param.MinutesPerTonePhase);
+				McKathlin.DayNight.debug("Outdoor tone is dawn phase", phase + 1);
 			return McKathlin.DayNight.Param.DawnTonePhases[phase];
 		}
 		else if (time < McKathlin.DayNight.Param.DuskStartTimeAsMinutes) {
 			// daytime light is after dawn and before dusk
+			McKathlin.DayNight.debug("Outdoor tone is day.");
 			return McKathlin.DayNight.Param.DaylightTone;
 		}
 		else if (time < McKathlin.DayNight.Param.DuskEndTimeAsMinutes) {
 			phase = Math.floor((time - McKathlin.DayNight.Param.DuskStartTimeAsMinutes) /
 				McKathlin.DayNight.Param.MinutesPerTonePhase);
+			McKathlin.DayNight.debug("Outdoor tone is dusk phase", phase + 1);
 			return McKathlin.DayNight.Param.DuskTonePhases[phase];
 		}
 		else {
 			// night, between dusk and midnight
+			McKathlin.DayNight.debug("Outdoor tone is night (before midnight)");
 			return McKathlin.DayNight.Param.NightTone;
 		}
 	}
@@ -1055,6 +1145,16 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			let key = keyword.toLowerCase();
 			let preset = McKathlin.DayNight.Param.SimpleLightingPresets[key];
 			if (preset) {
+				if (preset.picture_overlay) {
+					McKathlin.DayNight.debug(
+						`Preset ${keyword} has a picture overlay!`, 
+						preset.picture_overlay
+					);
+				} else {
+					McKathlin.DayNight.debug(
+						`Preset ${keyword} has no picture overlay.`
+					);
+				}
 				return preset.picture_overlay;
 			}
 		}
@@ -1071,6 +1171,14 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	Scene_Boot.prototype.loadSystemImages = function() {
 		McKathlin.DayNight.Scene_Boot_loadSystemImages.call(this);
 		McKathlin.DayNight.preLoadPictureOverlays();
+
+		if (!McKathlin.DayNight.Param.DaytimeSwitch && !McKathlin.DayNight.Param.NightSwitch) {
+			McKathlin.DayNight.warn(
+				"Your Daytime Switch and Night Switch have not been set yet.",
+				"\nEvents will have not know whether it is day or night until these are set.",
+				"\nOpen McKathlin_DayNight's plugin parameters to set them."
+			);
+		}
 	};
 
 	McKathlin.DayNight.preLoadPictureOverlays = function() {
@@ -1078,6 +1186,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			McKathlin.DayNight.Param.SimpleLightingPresets);
 		for (const preset of presets) {
 			if (preset && preset.picture_overlay && preset.picture_overlay.filename) {
+				McKathlin.DayNight.debug(
+					`Pre-loading ${preset} picture overlay:`,
+					preset.picture_overlay.filename
+				);
 				ImageManager.loadPicture(preset.picture_overlay.filename);
 			}
 		}
@@ -1097,6 +1209,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		}
 		if (picture == this._lastOverlayPicture) {
 			// Exact same overlay; no need to change.
+			McKathlin.DayNight.debug("No change in picture overlay.");
 			return;
 		}
 
@@ -1106,19 +1219,23 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		
 		if (0 == duration) {
 			// Instant change.
-			if (this._lastOverlayPicture &&
-				this._lastOverlayPicture.picture_number != picture.picture_number) {
+			if (
+				this._lastOverlayPicture &&
+				this._lastOverlayPicture.picture_number != picture.picture_number
+			) {
 				this.erasePicture(this._lastOverlayPicture.picture_number);
 			}
-			this.showPicture(pictureId, picture.filename, picture.origin,
+			this.showPicture(
+				pictureId, picture.filename, picture.origin,
 				picture.x, picture.y, picture.width_percent, picture.height_percent,
-				picture.opacity, picture.blend_mode);
+				picture.opacity, picture.blend_mode
+			);
 		} else if (this._lastOverlayPicture &&
 			picture.picture_number == this._lastOverlayPicture.picture_number) {
 			// This overlay has the same picture number as the last one.
 			// If picture file has changed, replace it, but with a warning.
 			if (picture.filename != this._lastOverlayPictureFilename) {
-				console.warn("Transition of picture overlays assigned to the " +
+				McKathlin.DayNight.warn("Transition of picture overlays assigned to the " +
 					"same picture number will be abrupt.\n" +
 					"To transition gradually, assign them different picture numbers,\n" +
 					"or leave picture number blank for automatic assignment.");
@@ -1137,6 +1254,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			this.clearPictureOverlay(duration);
 
 			// Start the new overlay at opacity zero.
+			McKathlin.DayNight.info(
+				`Phasing in picture overlay ${this._lastOverlayPicture.picture_number}` +
+				`at picture layer ${pictureId} for ${duration} frames`
+			);
 			this.showPicture(pictureId, picture.filename, picture.origin,
 				picture.x, picture.y, picture.width_percent, picture.height_percent,
 				INVISIBLE_OPACITY, picture.blend_mode);
@@ -1168,6 +1289,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 				pic.blend_mode, duration, SIGMOID_EASING);
 		} else {
 			// clear instantly
+			McKathlin.DayNight.info(
+				`Clearing picture overlay ${this._lastOverlayPicture.picture_number}` +
+				`at picture layer ${pictureId} for ${duration} frames`
+			);
 			this.erasePicture(pictureId);
 		}
 		this._lastOverlayPicture = null;
@@ -1182,6 +1307,22 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	DataManager.setupNewGame = function() {
 		McKathlin.DayNight.DataManager_setupNewGame.call(this);
 		McKathlin.DayNightCycle.reset();
+
+		if (McKathlin.DayNight.logs(McKathlin.Log.INFO)) {
+			McKathlin.DayNight.info(
+				"Starting time is set to",
+				McKathlin.DayNightCycle.now().toString()
+			);
+
+			if (McKathlin.DayNight.Param.EnableBloodmoon) {
+				McKathlin.DayNight.info(
+					McKathlin.DayNight.Param.NightsBeforeFirstBloodmoon, 
+					"nights will pass before the first Bloodmoon."
+				);
+			} else {
+				McKathlin.DayNight.info("The Bloodmoon feature is turned OFF.")
+			}
+		}
 	};
 	
 	// extended method
@@ -1291,6 +1432,18 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 		const note = $dataMap.note || "";
 		this.minutesPerStep = McKathlin.DayNight.getStepNotetag(note);
 
+		if (McKathlin.DayNight.logs(McKathlin.Log.INFO)) {
+			if (this.minutesPerStep > 0) {
+				McKathlin.DayNight.info(
+					"DayNight step notetag found.", 
+					this.minutesPerStep, 
+					"minutes pass per step."
+				);
+			} else {
+				McKathlin.DayNight.info("No DayNight step notetag found in this map.");
+			}
+		}
+
 		const lightingType = McKathlin.DayNight.getLightingNotetag(note);
 		const INSTANT_DURATION = 0;
 		this.applyLightingPreset(lightingType, INSTANT_DURATION);
@@ -1321,8 +1474,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 				this, command, args);
 		}
 
+		McKathlin.DayNight.info("DayNight plugin command:", command, ...args);
+
 		if (args.length == 0) {
-			console.warn("Incomplete DayNight plugin command");
+			McKathlin.DayNight.warn("Incomplete DayNight plugin command");
 			return;
 		}
 		
@@ -1339,6 +1494,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			if (actionWord.startsWith('reset')) {
 				// Reset Lighting
 				if (Number.isNaN(duration)) {
+					McKathlin.DayNight.warn("Lighting reset duration could not be read. Reset will be instant.");
 					duration = 0;
 				}
 				return McKathlin.DayNight.commandResetLighting(duration);
@@ -1346,6 +1502,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 				// Use Lighting Preset
 				let presetName = null;
 				if (Number.isNaN(duration) || args.length <= 1) {
+					McKathlin.DayNight.warn("Lighting change duration could not be read. Change will be instant.");
 					duration = 0;
 					presetName = args[args.length - 1];
 				} else {
@@ -1370,7 +1527,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			return McKathlin.DayNight.commandResetTime();
 		} else {
 			// Unknown Command
-			console.warn(
+			McKathlin.DayNight.warn(
 				"Unrecognized DayNight plugin command:",
 				command,
 				args.join(' '),
@@ -1381,32 +1538,37 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	//-- Set Time --
 	McKathlin.DayNight.commandSetTime = function(timeStr) {
 		let time = McKathlin.DayNight.parseTimeOfDay(timeStr);
+		McKathlin.DayNight.info("This command sets time forward to ", time);
 		McKathlin.DayNightCycle.setForwardTo(time);
 	};
 	
 	//-- Add Time --
 	McKathlin.DayNight.commandAddTime = function(timeSpanStr) {
 		let timeSpan = McKathlin.DayNight.parseTimeSpan(timeSpanStr);
+		McKathlin.DayNight.info(`This command adds ${timeSpan} to time`);
 		McKathlin.DayNightCycle.add(timeSpan);
 	};
 	
 	//-- Reset Time --
 	McKathlin.DayNight.commandResetTime = function() {
+		McKathlin.DayNight.info("This command resets the clock to the starting time.");
 		McKathlin.DayNightCycle.reset();
 	};
 	
 	//-- Reset Lighting --
 	McKathlin.DayNight.commandResetLighting = function(duration=0) {
 		const presetName = McKathlin.DayNight.getLightingNotetag($dataMap.note);
+		console.log(`This command resets lighting to map's preset ${presetName} with ${duration}-frame transition`);
 		$gameMap.applyLightingPreset(presetName, duration);
 	};
 	
 	//-- Use Lighting Preset --
 	McKathlin.DayNight.commandUseLightingPreset = function(presetName, duration=0) {
 		if (presetName) {
+			console.log(`This command applies the lighting preset ${presetName} with ${duration}-frame transition`);
 			$gameMap.applyLightingPreset(presetName, duration);
 		} else {
-			console.warn("Use Lighting Preset: no preset name given!");
+			McKathlin.DayNight.warn("Use Lighting Preset: no preset name given!");
 		}
 	};
 
@@ -1436,6 +1598,7 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 	};
 
 	McKathlin.DayNight.parseTimeSpan = function(timeSpanString) {
+		// TODO: Consider supporting hh:mm format as well
 		var days = 0;
 		var hours = 0;
 		var minutes = 0;
@@ -1501,6 +1664,16 @@ McKathlin.DayNight = McKathlin.DayNight || {};
 			const moonPhase = this.getMoonPhase();
 			const isBloodmoon = 0 == moonPhase;
 			const isDay = this.isDaytime();
+
+			if (McKathlin.DayNight.logs(McKathlin.Log.DEBUG)) {
+				if (isBloodmoon) {
+					McKathlin.debug("Bloodmoon phase is today.");
+				} else if (moonPhase < 0) {
+					McKathlin.debug("No bloodmoon yet.");
+				} else {
+					McKathlin.debug("Days since last bloodmoon:", moonPhase);
+				}
+			}
 
 			$gameVariables.setValue(
 				McKathlin.DayNight.Param.MoonPhaseVariable, moonPhase);
