@@ -44,10 +44,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  * and applies screen tones to areas marked as outdoors.
  * It also has an optional Bloodmoon feature. If this feature is turned on,
  * there will periodically be a night with its own distinct tones and switch.
- * 
- * ===========================================================================
+ * =
+ * ============================================================================
  * How to Start Using This Plugin                                               
- * ===========================================================================
+ * ============================================================================
  * To start seeing results from this plugin, follow these steps:
  * 1. As with any plugin, place it in the plugins folder and add it to your
  *    plugin list. 
@@ -104,9 +104,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *     The default settings give these nights a dark red cast, but you can
  *     change this to whatever you like.
  * 
- * ===========================================================================
+ * ============================================================================
  * Map Notetag Examples                                                   
- * ===========================================================================
+ * ============================================================================
  * <DayNight: step>
  *   Each step while on this map advances the in-universe time by the
  *   number of minutes given in the "Minutes Per Step" parameter.
@@ -123,9 +123,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *   unless overridden by an event. For more map lighting options, see the
  *   "Simple Lighting Presets" parameter.
  * 
- * ===========================================================================
+ * ============================================================================
  * Plugin Command Examples                                               
- * ===========================================================================
+ * ============================================================================
  * DayNight set time 7:05 AM
  *   Sets the the time of day to the specified time.
  *   In-universe time passed only moves forward, so setting the time earlier
@@ -146,9 +146,9 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *   Resets the lighting conditions to the preset specified in the current
  *   map's notetag. The transition lasts 60 frames, equal to 1 second.
  *
- * ===========================================================================
+ * ============================================================================
  * Script Call Getter Methods                                             
- * ===========================================================================
+ * ============================================================================
  * McKathlin.DayNightCycle.getMinutes();
  *     // The number of minutes past the current hour: 0 through 59
  * McKathlin.DayNightCycle.getHours();
@@ -163,6 +163,20 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *     // Number of minutes since midnight of the current day.
  * 
  * ============================================================================
+ * The Debug Console
+ * ============================================================================
+ * If this plugin isn't working as you expect, press F12 while the game is
+ * running. This will open the debug console, where you can see log messages
+ * about what the plugin is doing.
+ * 
+ * You can set the log messages' level of detail by changing the Log Level
+ * plugin parameter.
+ * - It starts with "Info, Warnings, and Errors".
+ * - For more detailed feedback, set it to "All, Including Debug".
+ * - For fewer messages and faster performance, set it to "Warnings and Errors"
+ *   or "Errors Only".
+ * 
+ * ============================================================================
  * Visit Tyruswoo.com to ask for help, donate, or browse more of our plugins.
  * ============================================================================
  * Version History:
@@ -172,8 +186,10 @@ McKathlin.DayNight = McKathlin.DayNight || {};
  *    - Includes Bloodmoon, picture overlay, and all other features
  *      from MZ Day-Night Cycle v2.1.0
  * 
- * v2.2.0  4/11/2026
+ * v2.2.0  4/21/2026
  *    - Help text updated to show correct examples of MV plugin commands
+ *    - Console logging added with adjustable log levels
+ * 
  * ============================================================================
  * MIT License
  *

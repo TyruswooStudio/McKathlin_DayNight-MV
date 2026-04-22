@@ -108,7 +108,7 @@ than the present time will advance in-universe time to the next day.
 * The transition lasts 60 frames, equal to 1 second.
 
 ## Script Call Getter Methods
-```                                        
+```javascript
 McKathlin.DayNightCycle.getMinutes();
     // The number of minutes past the current hour: 0 through 59
 McKathlin.DayNightCycle.getHours();
@@ -123,6 +123,17 @@ McKathlin.DayNightCycle.getMinutesOfDay();
     // Number of minutes since midnight of the current day.
 ```
 
+## The Debug Console
+If this plugin isn't working as you expect, press F12 while the game is
+running. This will open the debug console, where you can see log messages
+about what the plugin is doing.
+
+You can set the log messages' level of detail by changing the Log Level
+plugin parameter.
+* It starts with "Info, Warnings, and Errors".
+* For more detailed feedback, set it to "All, Including Debug".
+* For fewer messages and faster performance, set it to "Warnings and Errors" or "Errors Only".
+
 ### Visit [**Tyruswoo.com**](https://www.tyruswoo.com) to [ask for help](https://www.tyruswoo.com/contact-us/), [donate](https://www.tyruswoo.com/donate/), or browse more of our [plugins](https://www.tyruswoo.com/downloads/rpg-maker-plugin-downloads/).
 
 ## Version History
@@ -131,8 +142,9 @@ McKathlin.DayNightCycle.getMinutesOfDay();
 - Day-Night Cycle plugin released for RPG Maker MV
 - Includes Bloodmoon and all other features from MZ Day-Night Cycle v2.1
 
-**v2.1.1** - 8/7/2025
+**v2.2.0** - 4/21/2026
 - Help text updated to show correct examples of MV plugin commands
+- Console logging added with adjustable log levels
 
 > **Happy storytelling!**
 > 
