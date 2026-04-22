@@ -87,26 +87,28 @@ unless overridden by an event. For more map lighting options, see the
 
 ## Plugin Command Examples
 
-`Set Time` 7:05 AM
+`DayNight set time 7:05 AM`
 * Sets the the time of day to the specified time.
 * In-universe time passed only moves forward, so setting the time earlier
 than the present time will advance in-universe time to the next day.
 
-`Add Time 2h 30m`
+`DayNight add time 2h 30m`
 * Moves the time of day forward 2 hours and 30 minutes.
 
-`Reset Time`
+`DayNight reset time`
 * Changes the time back to game start time on day 0.
 
-`Set Lighting Dark`
+`DayNight set lighting Dark 30`
 * Applies the lighting preset named Dark for the rest of the player's time on this map.
 * You may use the keyword of any one lighting preset you wish to apply.
+* The lighting transition will last 30 frames, or 1/2 second.
 
-`Reset Lighting`
+`DayNight reset lighting 60`
 * Resets the lighting conditions to the preset specified in the current map's notetag.
+* The transition lasts 60 frames, equal to 1 second.
 
 ## Script Call Getter Methods
-```                                        
+```javascript
 McKathlin.DayNightCycle.getMinutes();
     // The number of minutes past the current hour: 0 through 59
 McKathlin.DayNightCycle.getHours();
@@ -121,6 +123,17 @@ McKathlin.DayNightCycle.getMinutesOfDay();
     // Number of minutes since midnight of the current day.
 ```
 
+## The Debug Console
+If this plugin isn't working as you expect, press F12 while the game is
+running. This will open the debug console, where you can see log messages
+about what the plugin is doing.
+
+You can set the log messages' level of detail by changing the Log Level
+plugin parameter.
+* It starts with "Info, Warnings, and Errors".
+* For more detailed feedback, set it to "All, Including Debug".
+* For fewer messages and faster performance, set it to "Warnings and Errors" or "Errors Only".
+
 ### Visit [**Tyruswoo.com**](https://www.tyruswoo.com) to [ask for help](https://www.tyruswoo.com/contact-us/), [donate](https://www.tyruswoo.com/donate/), or browse more of our [plugins](https://www.tyruswoo.com/downloads/rpg-maker-plugin-downloads/).
 
 ## Version History
@@ -129,8 +142,9 @@ McKathlin.DayNightCycle.getMinutesOfDay();
 - Day-Night Cycle plugin released for RPG Maker MV
 - Includes Bloodmoon and all other features from MZ Day-Night Cycle v2.1
 
-**v2.1.1** - 8/7/2025
+**v2.2.0** - 4/21/2026
 - Help text updated to show correct examples of MV plugin commands
+- Console logging added with adjustable log levels
 
 > **Happy storytelling!**
 > 
